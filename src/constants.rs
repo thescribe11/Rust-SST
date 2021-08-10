@@ -1,0 +1,1 @@
+pub const DEBUG: bool = true;  // Change to false in production
