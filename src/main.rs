@@ -60,16 +60,34 @@ fn main() {
 }
 
 
-fn mainloop (mut ent: Enterprise, mut uni: Universe) -> Result<(), &'static str> {
+fn mainloop <'a> (mut ent: Enterprise, mut uni: Universe) -> Result<(), &'static str> {
     //! The game's main execution loop
     
     loop {
         let prompt = input("Commad > ");
-        let (command, args) = Input::parse_args(prompt);
+        let command= Input::parse_args(prompt);
 
         match command {
-            CommandType::Quit => {
-                if input("Are you sure you want to quite (Y/n)? ").to_lowercase().starts_with('y') {
+            CommandType::Quit(y) => {
+                let mut quitting = false;
+
+                match y.chars().nth(0) {
+                    Some(c) => match c {
+                        'y' => quitting = true,
+                        'f' => quitting = false,
+                        _ => if input("Are you sure you want to quite (Y/n)? ")
+                            .to_lowercase()
+                            .starts_with('y') {
+                                quitting = true;
+                            }
+                    },
+                    None => if input("Are you sure you want to quite (Y/n)? ")
+                            .to_lowercase()
+                            .starts_with('y') {
+                                quitting = true;
+                            }
+                }
+                if quitting {
                     println!("\nLive long and prosper.");
                     return Ok(())
                 }
@@ -186,6 +204,4 @@ fn mainloop (mut ent: Enterprise, mut uni: Universe) -> Result<(), &'static str>
             }
         }
     }
-
-    Ok(())
 }

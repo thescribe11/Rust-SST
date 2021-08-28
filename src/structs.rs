@@ -11,7 +11,7 @@ pub struct Enterprise {
     crew: u8,
 
     // Engineering
-    energy: u32,
+    energy: i32,
     energy_reserves: u32,
     deuterium: bool,
 
@@ -24,6 +24,7 @@ pub struct Enterprise {
 
     // Weapons
     torpedoes: u8,
+    shields: i32,
 
     // Damage
     damage: Damage,
@@ -44,6 +45,7 @@ impl Enterprise {
             docked: false,
 
             torpedoes: 10,
+            shields: 800,
 
             damage: Damage::new()
         }
