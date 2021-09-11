@@ -21,7 +21,7 @@ mod structs;
 mod Input;
 mod constants;
 
-use Input::{input, freeze, thaw, CommandType, em_exit};
+use Input::{input, freeze, thaw, CommandType, em_exit, get_yorn, prout};
 use structs::{Enterprise, Universe};
 
 
@@ -64,144 +64,50 @@ fn mainloop <'a> (mut ent: Enterprise, mut uni: Universe) -> Result<(), &'static
     //! The game's main execution loop
     
     loop {
-        let prompt = input("Commad > ");
-        let command= Input::parse_args(prompt);
-
-        match command {
-            CommandType::Quit(y) => {
-                let mut quitting = false;
-
-                match y.chars().nth(0) {
-                    Some(c) => match c {
-                        'y' => quitting = true,
-                        'f' => quitting = false,
-                        _ => if input("Are you sure you want to quite (Y/n)? ")
-                            .to_lowercase()
-                            .starts_with('y') {
-                                quitting = true;
-                            }
-                    },
-                    None => if input("Are you sure you want to quite (Y/n)? ")
-                            .to_lowercase()
-                            .starts_with('y') {
-                                quitting = true;
-                            }
-                }
-                if quitting {
-                    println!("\nLive long and prosper.");
-                    return Ok(())
-                }
-            },
-            CommandType::Freeze => {
-                freeze(&ent, &uni);
-            },
-            CommandType::EmExit => {
-                em_exit(ent, uni);
-                return Ok(());
-            },
-            CommandType::LrScan => {
-
-            },
-            CommandType::SrScan => {
-
-            },
-            CommandType::StarChart => {
-
-            },
-            CommandType::Status => {
-
-            },
-            CommandType::Damage => {
-
-            },
-            CommandType::Move => {
-
-            },
-            CommandType::Warp => {
-
-            },
-            CommandType::Impulse => {
-
-            },
-            CommandType::Shields => {
-
-            },
-            CommandType::Phasers => {
-
-            },
-            CommandType::Report => {
-                
-            },
-            CommandType::Computer => {
-
-            },
-            CommandType::Torpedo => {
-
-            },
-            CommandType::Dock => {
-
-            },
-            CommandType::Rest => {
-
-            },
-            CommandType::CallStarbase => {
-
-            },
+        match Input::parse_args(input("Commad > ")) {
             CommandType::Abandon => {
-                
+                if get_yorn("Are you sure you want to abandon ship? ") {
+                    prout("")
+                }
             },
-            CommandType::Destruct => {
-
+            CommandType::CallStarbase => {},
+            CommandType::Capture => {},
+            CommandType::Cloak(yorn) => {},
+            CommandType::Commands => {},
+            CommandType::Computer => {},
+            CommandType::Damage => {},
+            CommandType::DeathRay => {},
+            CommandType::Destruct => {},
+            CommandType::Dock => {},
+            CommandType::EmExit => {},
+            CommandType::Error => continue,
+            CommandType::Freeze(file) => {},
+            CommandType::Help(what) => {},
+            CommandType::Impulse(mode, deltas) => {},
+            CommandType::Load(file) => {},
+            CommandType::LrScan => {},
+            CommandType::Mine => {},
+            CommandType::Move(mode, deltas) => {},
+            CommandType::Orbit => {},
+            CommandType::Phasers(mode, targets) => {},
+            CommandType::PlanetReport => {},
+            CommandType::Probe(yorn, mode, deltas) => {},
+            CommandType::Quit => {
+                prout("\nGoodbye.\n");
+                return Ok(())
             },
-            CommandType::SensorScan => {
-
-            },
-            CommandType::Orbit => {
-
-            },
-            CommandType::Transporter => {
-
-            },
-            CommandType::Shuttle => {
-
-            },
-            CommandType::Mine => {
-                
-            },
-            CommandType::Load => {
-
-            },
-            CommandType::PlanetReport => {
-
-            },
-            CommandType::Request => {
-
-            },
-            CommandType::DeathRay => {
-
-            },
-            CommandType::Probe => {
-
-            },
-            CommandType::Help => {
-
-            },
-            CommandType::Cloak => {
-                
-            },
-            CommandType::Capture => {
-
-            },
-            CommandType::Score => {
-
-            },
-            CommandType::Commands => {
-                
-            }
-
-            CommandType::Error => {
-                continue;
-            }
+            CommandType::Report => {},
+            CommandType::Request(what) => {},
+            CommandType::Rest(duration) => {},
+            CommandType::Score => {},
+            CommandType::SensorScan => {},
+            CommandType::Shields(m, amunt) => {},
+            CommandType::Shuttle => {},
+            CommandType::SrScan => {},
+            CommandType::StarChart => {},
+            CommandType::Torpedo(num, deltas) => {},
+            CommandType::Transporter(qubit) => {},
+            CommandType::Warp(factor) => {}
         }
     }
 }
