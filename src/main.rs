@@ -21,7 +21,7 @@ mod structs;
 mod Input;
 mod constants;
 
-use Input::{input, freeze, thaw, CommandType, em_exit, get_yorn, prout};
+use Input::{input, freeze, thaw, CommandType, em_exit, get_yorn, prout, slow_prout};
 use structs::{Enterprise, Universe};
 
 
@@ -67,7 +67,10 @@ fn mainloop <'a> (mut ent: Enterprise, mut uni: Universe) -> Result<(), &'static
         match Input::parse_args(input("Commad > ")) {
             CommandType::Abandon => {
                 if get_yorn("Are you sure you want to abandon ship? ") {
-                    prout("")
+                    prout("");
+                    slow_prout("*AWHOOGAH*  *AWHOOGAH*");
+                    slow_prout("This is your captain speaking. We are abandoning ship. Please make your way to the nearest escape pod in an orderly manner.");
+                    // TODO: Add the rest of the logic
                 }
             },
             CommandType::CallStarbase => {},
@@ -101,7 +104,7 @@ fn mainloop <'a> (mut ent: Enterprise, mut uni: Universe) -> Result<(), &'static
             CommandType::Rest(duration) => {},
             CommandType::Score => {},
             CommandType::SensorScan => {},
-            CommandType::Shields(m, amunt) => {},
+            CommandType::Shields(m, amount) => {},
             CommandType::Shuttle => {},
             CommandType::SrScan => {},
             CommandType::StarChart => {},
@@ -109,5 +112,34 @@ fn mainloop <'a> (mut ent: Enterprise, mut uni: Universe) -> Result<(), &'static
             CommandType::Transporter(qubit) => {},
             CommandType::Warp(factor) => {}
         }
+    }
+}
+
+mod tests {
+    use crate::Input::{parse_args, CommandType, ControlMode};
+
+    #[test]
+    fn test_parser () {
+        assert_eq!(parse_args(String::from("quit")), CommandType::Quit);
+        assert_eq!(parse_args(String::from("abandon")), CommandType::Abandon);
+
+        assert_ne!(parse_args(String::from("ca")), CommandType::CallStarbase);
+        assert_eq!(parse_args(String::from("call")), CommandType::CallStarbase);
+
+        assert_eq!(parse_args(String::from("cl y")), CommandType::Cloak(String::from("y")));
+
+        assert_eq!(parse_args(String::from("dea")), CommandType::Error);
+        assert_eq!(parse_args(String::from("deathray")), CommandType::DeathRay);
+
+        assert_eq!(parse_args(String::from("dest")), CommandType::Error);
+        assert_eq!(parse_args(String::from("destruct")), CommandType::Destruct);
+
+        println!("{:?}", parse_args(String::from("shields u")));
+        println!("{:?}", parse_args(String::from("shield tra -110.45")));
+
+        assert_eq!(parse_args(String::from("move a 1 1")), CommandType::Move(ControlMode::Auto, vec![1, 1]));
+        assert_eq!(parse_args(String::from("im a 1 1")), CommandType::Impulse(ControlMode::Auto, vec![1, 1]));
+
+        assert_eq!(parse_args(String::from("probe arm auto 1 1")), CommandType::Probe(true, ControlMode::Auto, vec![1, 1]));
     }
 }

@@ -3,6 +3,8 @@ use crate::structs::{Enterprise, Universe};
 
 use std::fs::File;
 use std::io::{Read, Write, stdin, stdout};
+use std::{thread, time};
+use std::fmt::Debug;
 
 use serde_json::{to_string, from_str};
 
@@ -37,28 +39,30 @@ pub fn abbrev (what: &String, least: &str, full: &str) -> bool {
 }
 
 
-pub fn strip<U: std::clone::Clone> (what: &mut Vec<U>, start: i32, length: i32) -> Option<Vec<U>> {
+pub fn strip<U: std::clone::Clone + std::fmt::Debug> (what: &mut Vec<U>, start: usize, end: usize) -> Option<Vec<U>> {
     //! Strip unnecessary elements from a Vec
 
-    if !(what.len() as i32 > start + length) {  // Ensure that the requested elements can be removed
+    if (what.len() < end) || start > end {  // Ensure that the requested elements can be removed
+        prout("Oops! You're trying to strip elements that aren't there.");
         return None
     }
-    for i in start..=start+length {
-        what.remove(i as usize);
-    }
-
-    Some(what.to_vec())
+    Some(what[start..end].to_vec())
 }
 
-fn convert_vec<U> (i: Vec<String>) -> Option<Vec<U>> where U: std::str::FromStr {
+fn convert_vec <U> (i: Vec<String>) -> Option<Vec<U>> 
+    where U: std::str::FromStr, <U as std::str::FromStr>::Err: std::fmt::Debug {
     //! Take a Vec<String> and turn it into Vec<U>.
 
     let mut to_return: Vec<U> = Vec::new();
     for item in i {
-        if let Ok(val) = item.parse::<U>() {
-            to_return.push(val)
-        } else {
-            return None
+        match item.parse::<U>() {
+            Ok(val) => to_return.push(val),
+            Err(e) => {
+                if DEBUG {
+                    println!("{:#?}", e);
+                }
+                return None
+            }
         }
     }
 
@@ -99,6 +103,21 @@ pub fn prout (prompt: &str) {
     }
 
     print!("\n");
+}
+
+pub fn slow_prout <T> (prompt: T) where T: ToString {
+    let mut index = 0;
+    for i in prompt.to_string().chars() {
+        print!("{}", i);
+        index += 1;
+
+        if index >= COLUMNS {
+            print!("\n");
+            index = 0;
+        }
+        stdout().flush().unwrap();
+        thread::sleep(time::Duration::from_millis(20))
+    }
 }
 
 
@@ -188,7 +207,7 @@ pub fn em_exit (ent: Enterprise, uni: Universe) {
 }
 
 
-pub fn parse_args <'a> (raw_input: String) -> CommandType<'static> {
+pub fn parse_args <'a> (raw_input: String) -> CommandType {
     //! Parse input
     let mut tokens: Vec<String> = raw_input.split(' ').map(|s| s.to_lowercase()).collect();
 
@@ -204,8 +223,8 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType<'static> {
     }
     else if abbrev(&tokens[0], "cl", "cloak") {
         match tokens.len() {
-            1 => return CommandType::Cloak(""),
-            2 => return CommandType::Cloak(stringify!(tokens[1])),
+            1 => return CommandType::Cloak(String::from("")),
+            2 => return CommandType::Cloak(tokens[1].clone()),
             _ => {
                 prout("[*Engineering*] Uh... sir, have you been taking your pills lately?");
                 return CommandType::Error
@@ -222,15 +241,16 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType<'static> {
         return CommandType::Damage
     }
     else if tokens[0].starts_with("dea") {
-        match stringify!(tokens[0]) {
+        match tokens[0].as_str() {
             "deathray" => return CommandType::DeathRay,
             _ => {
-                prout("Due to its awesome power (and tendency to explode in your face), the \"deathray\" command cannot be abbreviated.")
+                prout("Due to its awesome power (and tendency to explode in your face), the \"deathray\" command cannot be abbreviated.");
+                return CommandType::Error
             }
         }
     }
     else if tokens[0].starts_with("des") {
-        match stringify!(tokens[0]) {
+        match tokens[0].as_str() {
             "destruct" => return CommandType::Destruct,
             _ => {
                 prout("[*COMPUTER*] I'm sorry, but to prevent accidents Starfleet doesn't allow this command to be abbreviated.");
@@ -245,8 +265,8 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType<'static> {
     }
     else if abbrev(&tokens[0], "fr", "freeze") {
         match tokens.len() {
-            1 => return CommandType::Freeze(""),
-            2 => return CommandType::Freeze(stringify!(tokens[1])),
+            1 => return CommandType::Freeze(String::new()),
+            2 => return CommandType::Freeze(tokens[1].clone()),
             _ => {
                 prout("Huh?");
                 return CommandType::Error
@@ -255,8 +275,8 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType<'static> {
     }
     else if abbrev(&tokens[0], "h", "help") {
         match tokens.len() {
-            1 => return CommandType::Help(""),
-            2 => return CommandType::Help(stringify!(tokens[1])),
+            1 => return CommandType::Help(String::new()),
+            2 => return CommandType::Help(tokens[1].clone()),
             _ => {
                 prout("Hold yer horses! I can only give you help on one thing at a time.");
                 return CommandType::Error
@@ -276,8 +296,13 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType<'static> {
                     return CommandType::Error
                 };
 
-                tokens.remove(0);
-                return CommandType::Impulse(mode, tokens)
+                return CommandType::Impulse(mode, match convert_vec(strip(&mut tokens.clone(), 2, tokens.len()).unwrap()) {
+                    Some(i) => i,
+                    None => {
+                        prout(r#"[*Helm*] Sir, "second to the right, turn left after the sun and then straight on till morning" isn't a valid direction."#);
+                        return CommandType::Error
+                    }
+                })
             },
             _ => {
                 prout("[*Helm*] Sir, please say that again more slowly.");
@@ -313,8 +338,21 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType<'static> {
                     return CommandType::Error
                 };
 
-                tokens.remove(0);
-                return CommandType::Move(mode, tokens)
+                let _x = tokens.len();
+                return CommandType::Move(mode, match convert_vec(
+                    match strip(&mut tokens, 2, _x) {
+                        Some(s) => s,
+                        None => {
+                            prout("[*Helm*] Say again, sir?");
+                            return CommandType::Error
+                        }
+                    }) {
+                    Some(i) => i,
+                    None => {
+                        prout("[*Helm*] Sir, those directions make no sense!");
+                        return CommandType::Error
+                    }
+                })
             },
             _ => {
                 prout("[*Helm*] Sir, can you please say that again more slowly?");
@@ -391,7 +429,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType<'static> {
                 return CommandType::Error
             }
         };
-        let tokens: Vec<i32> = match convert_vec(match strip(&mut tokens.clone(), 2, tokens.len() as i32 - 1) {
+        let tokens: Vec<i32> = match convert_vec(match strip(&mut tokens.clone(), 2, tokens.len() + 0) {
             Some(t) => t.to_vec(),
             None => Vec::new()
             }) {
@@ -405,9 +443,14 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType<'static> {
         return CommandType::Probe(armed, mode, tokens)
     }
     else if tokens[0].clone() == "quit" {
-        if abbrev(&input("Are you sure you want to quit? "), "y", "yes") {
+        if DEBUG {
             return CommandType::Quit
+        } else {
+            if abbrev(&input("Are you sure you want to quit? "), "y", "yes") {
+                return CommandType::Quit
+            }
         }
+            
     }
     else if abbrev(&tokens[0], "st", "status") {
         return CommandType::Report
@@ -439,11 +482,11 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType<'static> {
     }
     else if abbrev(&tokens[0], "s", "shields") {
         match tokens.len() {
-            1 => return CommandType::Shields("", f32::NAN),
+            1 => return CommandType::Shields(String::new(), f32::NAN),
             _ => return CommandType::Shields(match tokens[1].clone() {
-                u if "up".contains(&u) => "u",
-                d if "down".contains(&d) => "d",
-                t if "transfer".contains(&t) => "t",
+                u if "up".contains(&u) => "u".to_string(),
+                d if "down".contains(&d) => "d".to_string(),
+                t if "transfer".contains(&t) => "t".to_string(),
                 _ => {
                     prout("[*Shield Control*] Say again, sir?");
                     return CommandType::Error
@@ -495,7 +538,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType<'static> {
                         return CommandType::Error;
                     }
                 };
-                tokens = match strip(&mut tokens.clone(), 2, tokens.len() as i32 - 1) {
+                tokens = match strip(&mut tokens.clone(), 2, tokens.len()+0) {
                     Some(t) => t.to_vec(),
                     None => Vec::new()
                 };
@@ -544,12 +587,12 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType<'static> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum CommandType<'a> {
+pub enum CommandType {
     // Commands are sorted alphabetically for convenience.
     Abandon,
     CallStarbase,
     Capture,
-    Cloak(&'a str),
+    Cloak(String),
     Commands,
     Computer,
     Damage,
@@ -558,13 +601,13 @@ pub enum CommandType<'a> {
     Dock,
     EmExit,
     Error,
-    Freeze(&'a str),
-    Help(&'a str),
-    Impulse(ControlMode, Vec<String>),
+    Freeze(String),
+    Help(String),
+    Impulse(ControlMode, Vec<usize>),
     Load(String),
     LrScan,
     Mine,
-    Move(ControlMode, Vec<String>),
+    Move(ControlMode, Vec<usize>),
     Orbit,
     Phasers(ControlMode, Vec<f32>),
     PlanetReport,
@@ -575,7 +618,7 @@ pub enum CommandType<'a> {
     Rest(f32),
     Score,
     SensorScan,
-    Shields(&'a str, f32),
+    Shields(String, f32),
     Shuttle,
     SrScan,
     StarChart,
