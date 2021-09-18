@@ -22,15 +22,17 @@ mod Input;
 mod constants;
 
 use Input::{input, freeze, thaw, CommandType, em_exit, get_yorn, prout, slow_prout};
-use structs::{Enterprise, Universe};
+use structs::Universe;
 
 
 fn main() {
-    println!("\n============ SUPER STAR TREK ============\n");
+    println!("\n=======================
+--- SUPER STAR TREK ---
+=======================\n");
     
     if input("Load from save file? (y/n) ").to_lowercase().starts_with("y") {
         match thaw() {
-            Some((e, u)) => {match mainloop(e, u) {
+            Some(u) => {match mainloop(u) {
                 Ok(_) => {},
                 Err(error) => println!("Fatal error: {}", error)
             }},
@@ -52,7 +54,7 @@ fn main() {
             };
         }
 
-        match mainloop(Enterprise::new(), Universe::new(raw_player_name.split(' ').into_iter().map(|e| String::from(e)).collect(), password)) {
+        match mainloop(Universe::new(raw_player_name.split(' ').into_iter().map(|e| String::from(e)).collect(), password, difficulty)) {
             Ok(_) => {},
             Err(e) => println!("Fatal error: {}", e)
         }
@@ -60,17 +62,17 @@ fn main() {
 }
 
 
-fn mainloop <'a> (mut ent: Enterprise, mut uni: Universe) -> Result<(), &'static str> {
+fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
     //! The game's main execution loop
     
     loop {
-        match Input::parse_args(input("Commad > ")) {
+        match Input::parse_args(input("\nCommad > ")) {
             CommandType::Abandon => {
                 if get_yorn("Are you sure you want to abandon ship? ") {
                     prout("");
-                    slow_prout("*AWHOOGAH*  *AWHOOGAH*");
-                    slow_prout("This is your captain speaking. We are abandoning ship. Please make your way to the nearest escape pod in an orderly manner.");
+                    
                     // TODO: Add the rest of the logic
+                    uni.abandon_ship();
                 }
             },
             CommandType::CallStarbase => {},
@@ -78,13 +80,13 @@ fn mainloop <'a> (mut ent: Enterprise, mut uni: Universe) -> Result<(), &'static
             CommandType::Cloak(yorn) => {},
             CommandType::Commands => {},
             CommandType::Computer => {},
-            CommandType::Damage => {},
+            CommandType::Damage => uni.damage.print_damage(),
             CommandType::DeathRay => {},
             CommandType::Destruct => {},
             CommandType::Dock => {},
             CommandType::EmExit => {},
             CommandType::Error => continue,
-            CommandType::Freeze(file) => {},
+            CommandType::Freeze(file) => freeze(&uni),
             CommandType::Help(what) => {},
             CommandType::Impulse(mode, deltas) => {},
             CommandType::Load(file) => {},
@@ -106,7 +108,7 @@ fn mainloop <'a> (mut ent: Enterprise, mut uni: Universe) -> Result<(), &'static
             CommandType::SensorScan => {},
             CommandType::Shields(m, amount) => {},
             CommandType::Shuttle => {},
-            CommandType::SrScan => {},
+            CommandType::SrScan => uni.srscan(),
             CommandType::StarChart => {},
             CommandType::Torpedo(num, deltas) => {},
             CommandType::Transporter(qubit) => {},
@@ -141,5 +143,11 @@ mod tests {
         assert_eq!(parse_args(String::from("im a 1 1")), CommandType::Impulse(ControlMode::Auto, vec![1, 1]));
 
         assert_eq!(parse_args(String::from("probe arm auto 1 1")), CommandType::Probe(true, ControlMode::Auto, vec![1, 1]));
+    }
+
+    #[test]
+    fn test_srscan () {
+        let mut uni = crate::Universe::new(String::from("James Kirk").split(' ').into_iter().map(|e| String::from(e)).collect(), String::from("asdf"), 1u8);
+        uni.srscan();
     }
 }

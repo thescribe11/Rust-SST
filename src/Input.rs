@@ -1,5 +1,5 @@
 use crate::constants::{DEBUG, COLUMNS};
-use crate::structs::{Enterprise, Universe};
+use crate::structs::{Universe};
 
 use std::fs::File;
 use std::io::{Read, Write, stdin, stdout};
@@ -118,21 +118,19 @@ pub fn slow_prout <T> (prompt: T) where T: ToString {
         stdout().flush().unwrap();
         thread::sleep(time::Duration::from_millis(20))
     }
+    println!();
 }
 
 
-pub fn thaw () -> Option<(Enterprise, Universe)>{
+pub fn thaw () -> Option<Universe>{
     //! Thaw a game.
     //!
     //! The .sst file type is as follows:
     //!
-    //! (password)0x1e(json data for Enterprise object)\0x1e(json data for Universe object)
+    //! (password)0x1e(json data for Universe object)
 
     let mut save_file: File;
-    let ent: Enterprise; 
     let uni: Universe;
-
-    println!("{:#?}", std::env::current_dir());
 
     loop {
         let temp = File::open(input("Save file: "));
@@ -160,19 +158,15 @@ pub fn thaw () -> Option<(Enterprise, Universe)>{
         return None
     }
     
-    ent = match from_str(raw_parts[1].as_str()) {
+    uni = match from_str(raw_parts[1].as_str()) {
         Ok(data) => {data},
         Err(_) => {prout("\nERROR: The save file is corrupted."); return None}
     };
-    uni = match from_str(raw_parts[2].as_str()) {
-        Ok(data) => data,
-        Err(_) => {prout("\nERROR: The save file is corrupted."); return None}
-    };
-
-    return Some((ent, uni))
+    
+    return Some(uni)
 }
 
-pub fn freeze (ent: &Enterprise, uni: &Universe) {
+pub fn freeze (uni: &Universe) {
     let mut file = match File::create(input("Filename: ")) {
         Ok(f) => f,
         Err(e) => {
@@ -182,7 +176,7 @@ pub fn freeze (ent: &Enterprise, uni: &Universe) {
         }
     };
 
-    match file.write_all((uni.password.clone() + "\0x1e" + to_string(ent).unwrap().as_str() + "\0x1e" + to_string(uni).unwrap().as_str()).as_bytes()) {
+    match file.write_all((uni.password.clone() + "\0x1e" + to_string(uni).unwrap().as_str()).as_bytes()) {
         Ok(_) => {},
         Err(_) => prout("I'm sorry, but that file cannot be written to.")
     }
@@ -190,7 +184,7 @@ pub fn freeze (ent: &Enterprise, uni: &Universe) {
 }
 
 
-pub fn em_exit (ent: Enterprise, uni: Universe) {
+pub fn em_exit (uni: Universe) {
     let mut file = match File::create("emsave.sst") {
         Ok(f) => f,
         Err(e) => {
@@ -200,7 +194,7 @@ pub fn em_exit (ent: Enterprise, uni: Universe) {
         }
     };
 
-    match file.write_all((uni.password.clone() + "\0x1e" + to_string(&ent).unwrap().as_str() + "\0x1e" + to_string(&uni).unwrap().as_str()).as_bytes()) {
+    match file.write_all((uni.password.clone() + "\0x1e" + to_string(&uni).unwrap().as_str()).as_bytes()) {
         Ok(_) => {},
         Err(_) => println!("ERROR: Unable to save.")
     }
