@@ -84,13 +84,16 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
             CommandType::DeathRay => {},
             CommandType::Destruct => {},
             CommandType::Dock => {},
-            CommandType::EmExit => {},
+            CommandType::EmExit => {
+                em_exit(uni);
+                return Ok(())
+            },
             CommandType::Error => continue,
             CommandType::Freeze(file) => freeze(&uni),
             CommandType::Help(what) => {},
             CommandType::Impulse(mode, deltas) => {},
             CommandType::Load(file) => {},
-            CommandType::LrScan => {},
+            CommandType::LrScan => uni.lrscan(),
             CommandType::Mine => {},
             CommandType::Move(mode, deltas) => {},
             CommandType::Orbit => {},
@@ -109,7 +112,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
             CommandType::Shields(m, amount) => {},
             CommandType::Shuttle => {},
             CommandType::SrScan => uni.srscan(),
-            CommandType::StarChart => {},
+            CommandType::StarChart => uni.starchart(),
             CommandType::Torpedo(num, deltas) => {},
             CommandType::Transporter(qubit) => {},
             CommandType::Warp(factor) => {}

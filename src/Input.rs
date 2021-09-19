@@ -6,6 +6,7 @@ use std::io::{Read, Write, stdin, stdout};
 use std::{thread, time};
 use std::fmt::Debug;
 
+use clearscreen::clear;
 use serde_json::{to_string, from_str};
 
 
@@ -147,7 +148,7 @@ pub fn thaw () -> Option<Universe>{
         Err(_) => {prout("\nERROR: The save file is corrupted."); return None}
     }
 
-    let raw_parts: Vec<String> = enc_data.split("\0x1e")
+    let raw_parts: Vec<String> = enc_data.split("\0")
         .collect::<Vec<&str>>()
         .into_iter()
         .map(|element| String::from(element))
@@ -176,7 +177,7 @@ pub fn freeze (uni: &Universe) {
         }
     };
 
-    match file.write_all((uni.password.clone() + "\0x1e" + to_string(uni).unwrap().as_str()).as_bytes()) {
+    match file.write_all((uni.password.clone() + "\0" + to_string(uni).unwrap().as_str()).as_bytes()) {
         Ok(_) => {},
         Err(_) => prout("I'm sorry, but that file cannot be written to.")
     }
@@ -185,6 +186,10 @@ pub fn freeze (uni: &Universe) {
 
 
 pub fn em_exit (uni: Universe) {
+    //! Emergency exit.
+    //! 
+    //! Saves the state, clears the screen, and then exits the program.
+
     let mut file = match File::create("emsave.sst") {
         Ok(f) => f,
         Err(e) => {
@@ -194,10 +199,12 @@ pub fn em_exit (uni: Universe) {
         }
     };
 
-    match file.write_all((uni.password.clone() + "\0x1e" + to_string(&uni).unwrap().as_str()).as_bytes()) {
+    match file.write_all((uni.password.clone() + "\0" + to_string(&uni).unwrap().as_str()).as_bytes()) {
         Ok(_) => {},
         Err(_) => println!("ERROR: Unable to save.")
     }
+
+    clear().unwrap();
 }
 
 
@@ -214,6 +221,9 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
     }
     else if tokens[0] == "call" {
         return CommandType::CallStarbase
+    }
+    else if abbrev(&tokens[0], "ca", "capture") {
+        return CommandType::Capture
     }
     else if abbrev(&tokens[0], "cl", "cloak") {
         match tokens.len() {
@@ -577,6 +587,8 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
         }
     }
 
+    // At this point we can assume that it isn't a valid command
+    prout("[*Mr. Spock*] Captain, that is not a valid command.");
     return CommandType::Error
 }
 

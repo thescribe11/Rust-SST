@@ -97,6 +97,7 @@ pub struct Universe {
     time_remaining: f64,
 
     pub quadrants: [[Quadrant; 8]; 8],
+    charted: [[bool; 8]; 8],
     
     pub player_name: Vec<String>,
     pub password: String,
@@ -144,6 +145,7 @@ impl Universe {
             [Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default()],
             [Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default()],
             [Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default()],],
+            charted: [[false; 8]; 8],
 
             player_name,
             password,
@@ -255,6 +257,10 @@ impl Universe {
         prout("    1 2 3 4 5 6 7 8 9 10");
         prout("  ┏━━━━━━━━━━━━━━━━━━━━━┓");
 
+        if self.damage.srsensors == 0 { // Chart quadrant, but only if the short-range sensors are undamaged.
+            self.charted[self.qvert][self.qhoriz] = true;
+        }
+
         let mut index = 0;
         for vert in 0..10 {
             print!("{}{}", vert+1, match vert {
@@ -333,6 +339,59 @@ impl Universe {
             }
         }
     }
+
+    pub fn lrscan (&mut self) {
+        //! Perform a long-range sensor scan.
+        //! It won't give you fine details about
+        //! quadrants, but you can get some basic
+        //! information.
+
+        if self.damage.lrsensors > 0 {
+            prout("[*Mr. Spock*] Sir, the long range sensors are inoperable due to damage.");
+            return;
+        }
+
+        println!("Long-range sensor scan for quadrant {} {}:", self.qvert+1, self.qhoriz+1);
+
+        for i in self.qvert as i32-1..=self.qvert as i32+1 {
+            for j in self.qhoriz as i32-1..=self.qhoriz as i32 +1 {
+                if i<0 || i>7 || j<0 || j>7 {  // Galactic border
+                    print!("  -1 ");
+                    continue; // Don't try to chart out-of-bounds areas.
+                }
+                
+                else if self.quadrants[i as usize][j as usize].is_supernova {  // Supernova
+                    print!(" 1000")
+                } else {  // Regular quadrant
+                    let (x, y, z) = self.quadrants[i as usize][j as usize].poll_lrscan();
+                    print!(" {}{}{}", x, y, z);
+                }
+                self.charted[i as usize][j as usize] = true;
+            }
+            println!();
+        }
+    }
+
+    pub fn starchart (&self) {
+        println!("     1   2   3   4   5   6   7   8");
+        println!("  ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓");
+
+        for vert in 0..8 {
+            print!("{} ┃ ", &vert+1);
+
+            for horiz in 0..8 {
+                if self.charted[vert][horiz] {
+                    let (k,b,s) = self.quadrants[vert][horiz].poll_lrscan();
+                    print!("{}{}{} ", k, b, s);
+                } else {
+                    print!("??? ");
+                }
+            }
+
+            println!("┃");
+        }
+        println!("  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛");
+    }
 }
 
 
@@ -341,6 +400,9 @@ pub struct Quadrant {
     sectors: Vec<u8>,  // [u8; 100] would be more efficient, but it doesn't play well with Serde.
     entities: Vec<(EntityType, usize, Health, Alignment)>,
     is_supernova: bool,
+    klingons: u8,
+    starbases: u8,
+    stars: u8,
 }
 
 impl Quadrant {
@@ -352,7 +414,10 @@ impl Quadrant {
         let mut to_return = Quadrant {
             sectors: Vec::from_iter([0u8; 100]),  // 1 = star, 2 = starbase, 3 = klingon, 4 = romulan, 5 = black hole, 6 = tholian, 7 = unknown entity, 8 = player's ship
             entities: Vec::new(),
-            is_supernova: false
+            is_supernova: false,
+            klingons: 0,
+            starbases: 0,
+            stars: 0,
         };
 
         return to_return
@@ -396,12 +461,21 @@ impl Quadrant {
                 },
                 6 => self.sectors[i] = if romulans < max_romulans {
                     romulans += 1;
-                    4} else {1},      // Romulan
+                    self.entities.push((
+                        EntityType::Romulan,
+                        i,
+                        Health::Health(randint.gen_range(250..500)),
+                        Alignment::Enemy
+                    ));
+                    4
+                } else {1},      // Romulan
                 7..=8 => self.sectors[i] = 5,  // Black hole.
-                9..=13 => self.sectors[i] = 1, // Star
+                9..=13 => {self.sectors[i] = 1; self.stars += 1}, // Star
                 _ => {}
             }  
         }
+
+        self.klingons = klingons as u8;
 
         return klingons as u32
     }
@@ -425,8 +499,8 @@ impl Quadrant {
         }
     }
 
-    fn poll_lrscan (&self) -> (u32, u32, u32) {
-        unimplemented!()
+    fn poll_lrscan (&self) -> (u8, u8, u8) {
+        (self.klingons, self.starbases, self.stars)
     }
 
     pub fn get_entity (&self, location: usize) -> Option<(EntityType, usize, Health, Alignment)> {
