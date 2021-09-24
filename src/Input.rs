@@ -509,7 +509,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
     else if abbrev(&tokens[0], "ma", "map") || abbrev(&tokens[0], "sta", "starchart") || abbrev(&tokens[0], "ch", "chart") {
         return CommandType::StarChart
     }
-    else if abbrev(&tokens[0], "t", "torpedo") {
+    else if abbrev(&tokens[0], "t", "torpedoes") || abbrev(&tokens[0], "pho", "photons") {
         let mut to_fire: Option<u8> = None;
         let mut directions: Vec<u8> = Vec::new();
         

@@ -1,8 +1,11 @@
 //! Contains all the various data structs used by the program.
-extern crate rand;
 use rand::{Rng, random};
 use serde::{Serialize, Deserialize};
+use termion::color::{Blue, Fg, Green, Red, Reset, Yellow};
+use termion::style::{Bold, NoBold};
+
 use std::{iter::FromIterator};
+
 use crate::{Input::{ControlMode, input, get_args}, constants::{DEBUG, ALGERON}, events::DeathReason, slow_prout};
 
 
@@ -285,15 +288,15 @@ impl Universe {
 
                 if printing {
                     print!(" {}", match self.sector(&index) {
-                        0 => '.',
-                        1 => '*',
-                        2 => 'B',
-                        3 => 'K',
-                        4 => 'R',
-                        5 => ' ',
-                        6 => 't',
-                        7 => '?',
-                        8 => 'E',
+                        0 => String::from("."),
+                        1 => String::from("*"),
+                        2 => format!("{}B{}", Fg(Blue), Fg(Reset)),
+                        3 => format!("{}K{}", Fg(Red), Fg(Reset)),
+                        4 => format!("{}R{}", Fg(Green), Fg(Reset)),
+                        5 => String::from(" "),
+                        6 => format!("{}t{}", Fg(Red), Fg(Reset)),
+                        7 => format!("{}?{}", Fg(Green), Fg(Reset)),
+                        8 => format!("{}E{}", Fg(Blue), Fg(Reset)),
                         _ => panic!("It appears that the program has managed to put an impossible value in the sector srscan table. Please contact the developer with a bug report.")
                     });
                 } else {
@@ -307,12 +310,16 @@ impl Universe {
 
             match vert {
                 0 => println!(" Stardate:      {:.2}", self.stardate),
-                1 => println!(" Condition:     {:?}", self.alert_level),
+                1 => println!(" Condition:     {}", match self.alert_level {
+                    Alert::Red => "RED",
+                    Alert::Yellow => "Yellow",
+                    Alert::Green => "Green",
+                }),
                 2 => println!(" Position:      Sector {} {} of quadrant {} {}", self.sloc/10+1, self.sloc%10+1, &self.qvert+1, &self.qhoriz+1),
                 3 => println!(" Life Reserves: {}; reserves: {:.2} days", 
                     match self.on_life_reserve {
-                        false => "Active",
-                        true => "OFFLINE"
+                        false => String::from("Active"),
+                        true => format!("{}OFFLINE{}", Fg(Red), Fg(Reset)),
                     }, self.life_reserves
                 ),
                 4 => println!(" Warp Factor:   {}", self.warp_factor),
@@ -431,16 +438,21 @@ impl Universe {
         let _d = match deltas.len() {  // Get a firing solution if there isn't already one.
             0 => {
                 let mut _d: Vec<u8> = Vec::new();
-                let mut index: usize = 0;
+                let mut index = 0;
                 while index < to_fire as usize {
                     print!("Input direction for torpedo #{}: ", index+1);
-                    let raw: Vec<u8> = match get_args(input("")) {
-                        Some(v) => {index += v.len(); v},
+                    match get_args(input("")) {
+                        Some(v) => {
+                            for i in v {
+                                _d.push(i);
+                            }
+                            index += 1;
+                        },
                         None => {
                             println!("[*Armory*] Sir, that doesn't make sense.");
                             return
                         }
-                    };
+                    }
                 }
                 _d
             },
@@ -461,80 +473,92 @@ impl Universe {
         }).collect::<Vec<i8>>();
 
         let mut torp_num = 0;
+        // Fire torpedoes
         for delta in solution {
             torp_num += 1;
             let mut torp_loc: i8 = self.sloc as i8;
-            print!("Track for torpedo #{}: ", &torp_num);
+            print!("\nTrack for torpedo #{}: ", &torp_num);
 
+            // Simulate torpedo
             loop {
                 torp_loc += delta;
-                if torp_loc < 0 || torp_loc > 9 {
+                if torp_loc < 0 || torp_loc > 99 {
+                    println!("Out of bounds; breaking.");
                     break;
                 }
 
+                // Process impact
                 match self.get_quadrant().get_entity(torp_loc as usize) {
-                    Some((t, loc, he, al)) => match t {
-                        EntityType::BlackHole => {
-                            println!("\n Torpedo swallowed by black hole.");
-                            break;
-                        },
-                        EntityType::Klingon => {  // Klingons are always destroyed by torpedoes, although I might want to change this later.
-                            println!("\n ***Klingon at sector ({}, {}) destroyed.", (torp_loc/10)+1, (torp_loc%10)+1);
-                            self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
-                            self.score.kill_klingon();
-                        },
-                        EntityType::Romulan => {
-                            match random::<u8>() {
-                                0..=200 => {  // Romulan dies
-                                    println!("\n ***Romulan at sector ({}, {}) destroyed.", (torp_loc/10)+1, (torp_loc%10)+1);
-                                    self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
-                                    self.score.kill_romulan();
-                                },
-                                201..=255 => {
-                                    self.quadrants[self.qvert][self.qhoriz].damage_entity(torp_loc as usize, 500);
-                                    self.score.kill_romulan()
-                                }
-                            }
-                        },
-                        EntityType::Star => {
-                            println!("\n ***Torpedo impacts star at sector ({}, {}), causing it to go nova.", (torp_loc/10)+1, (torp_loc%10)+1);
-                            for i in [torp_loc-11, torp_loc-10, torp_loc-9, torp_loc-1, torp_loc, torp_loc+1, torp_loc+9, torp_loc+10, torp_loc+11] {
-                                if i > -1 && i < 100 {
-                                    match self.get_quadrant().sectors[i as usize] {
-                                        1 => self.score.kill_star(),
-                                        2 => self.score.kill_starbase(),
-                                        3 => self.score.kill_klingon(),
-                                        4 => self.score.kill_romulan(),
-                                        5 => continue,  // Novas don't do anything to black holes either.
-                                        6 => self.score.kill_tholian(),
-                                        7 => self.score.kill_unknown(),
-                                        8 => {},
-                                        _ => panic!("Somehow a corrupted value has gotten into the sector map.")
+                    Some((t, loc, he, al)) => {
+                        match t {
+                            EntityType::BlackHole => {
+                                println!("\n Torpedo swallowed by black hole.");
+                            },
+                            EntityType::Klingon => {  // Klingons are always destroyed by torpedoes, although I might want to change this later.
+                                println!("\n ***Klingon at sector ({}, {}) destroyed.", (torp_loc/10)+1, (torp_loc%10)+1);
+                                self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
+                                self.score.kill_klingon();
+                                self.klingons -=1;
+                            },
+                            EntityType::Romulan => {
+                                match random::<u8>() {
+                                    0..=200 => {  // Romulan dies
+                                        println!("\n ***Romulan at sector ({}, {}) destroyed.", (torp_loc/10)+1, (torp_loc%10)+1);
+                                        self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
+                                        self.score.kill_romulan();
+                                    },
+                                    201..=255 => {
+                                        self.quadrants[self.qvert][self.qhoriz].damage_entity(torp_loc as usize, 500);
+                                        self.score.kill_romulan()
                                     }
-                                    self.quadrants[self.qvert][self.qhoriz].kill_entity(i as usize);
+                                }
+                            },
+                            EntityType::Star => {
+                                println!("\n ***Torpedo impacts star at sector ({}, {}), causing it to go nova.", (torp_loc/10)+1, (torp_loc%10)+1);
+                                for i in [torp_loc-11, torp_loc-10, torp_loc-9, torp_loc-1, torp_loc, torp_loc+1, torp_loc+9, torp_loc+10, torp_loc+11] {
+                                    if i > -1 && i < 100 {
+                                        match self.get_quadrant().sectors[i as usize] {
+                                            0 => {},  // Empty space; do nothing.
+                                            1 => self.score.kill_star(),
+                                            2 => self.score.kill_starbase(),
+                                            3 => self.score.kill_klingon(),
+                                            4 => self.score.kill_romulan(),
+                                            5 => continue,  // Novas don't do anything to black holes either.
+                                            6 => self.score.kill_tholian(),
+                                            7 => self.score.kill_unknown(),
+                                            8 => {},
+                                            _ => {
+                                                println!("{}", self.get_quadrant().sectors[i as usize]);
+                                                panic!("Somehow a corrupted value has gotten into the sector map.")
+                                            }
+                                        }
+                                        self.quadrants[self.qvert][self.qhoriz].kill_entity(i as usize);
+                                    }
                                 }
                             }
+                            EntityType::Starbase => {
+                                println!("\n ***Friendly starbase at sector ({}, {}) destroyed. You murderer.", (torp_loc/10)+1, (torp_loc%10)+1);
+                                self.score.kill_starbase();
+                                self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
+                            },
+                            EntityType::Unknown => {
+                                println!("\n *** ??? at sector ({}, {}) destroyed.", (torp_loc/10)+1, (torp_loc%10)+1);
+                                self.score.kill_unknown();
+                                self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
+                            },
+                            EntityType::Tholian => {
+                                println!("\n ***Tholian at sector ({}, {}) destroyed. Good shot!", (torp_loc/10)+1, (torp_loc%10)+1);
+                                self.score.kill_tholian();
+                                self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
+                            },
+                            EntityType::Planet => {
+                                println!("\n ***Planet at sector ({}, {}) destroyed. You murderer.", (torp_loc/10)+1, (torp_loc%10)+1);
+                            },
                         }
-                        EntityType::Starbase => {
-                            println!("\n ***Friendly starbase at sector ({}, {}) destroyed. You murderer.", (torp_loc/10)+1, (torp_loc%10)+1);
-                            self.score.kill_starbase();
-                            self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
-                        },
-                        EntityType::Unknown => {
-                            println!("\n *** ??? at sector ({}, {}) destroyed.", (torp_loc/10)+1, (torp_loc%10)+1);
-                            self.score.kill_unknown();
-                            self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
-                        },
-                        EntityType::Tholian => {
-                            println!("\n ***Tholian at sector ({}, {}) destroyed. Good shot!", (torp_loc/10)+1, (torp_loc%10)+1);
-                            self.score.kill_tholian();
-                            self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
-                        },
-                        EntityType::Planet => {
-                            println!("\n ***Planet at sector ({}, {}) destroyed. You murderer.", (torp_loc/10)+1, (torp_loc%10)+1);
-                        },
+                        // The torpedo has, of course, blown up.
+                        break;
                     }
-                    None => print!("({}, {}), ", (torp_loc/10)+1, (torp_loc%10)+1)
+                    None => print!(", ({}, {})", (torp_loc/10)+1, (torp_loc%10)+1)
                 }
             }
         }
@@ -744,10 +768,10 @@ impl Score {
         }
     }
 
-    fn get_score (&self) -> i32 {
-        return self.klingons_killed * 100
+    pub fn get_score (&self) -> i32 {
+        return self.klingons_killed * 150
             +
-            self.romulans_killed * 150
+            self.romulans_killed * 200
             +
             self.tholians_killed * 300
             +
@@ -758,16 +782,48 @@ impl Score {
             self.stars_killed * 10
             -
             match self.ididit {
-                true => 300,
+                true => 100,
                 false => 0,
             }
             -
             match self.alive {
                 true => 0,
-                false => 100,
+                false => 200,
             }
             -
             self.ships_lost * 400  // Losing a ship is a big dill.
+    }
+
+    pub fn print_score (&self) {
+        if self.klingons_killed > 0 {
+            println!("{} Klingons killed:             +{}", &self.klingons_killed, self.klingons_killed * 150);
+        }
+        if self.romulans_killed > 0 {
+            println!("{} Romulans killed:             +{}", &self.romulans_killed, self.romulans_killed * 200);
+        }
+        if self.tholians_killed > 0 {
+            println!("{} Tholians killed:             +{}", &self.tholians_killed, self.tholians_killed * 300);
+        }
+        if self.others_killed > 0 {
+            println!("{} unknown entities killed:     +{}", &self.others_killed, self.others_killed * 50);
+        }
+        if self.bases_killed > 0 {
+            println!("{} starbases destroyed:         -{}", &self.bases_killed, self.bases_killed * 500);
+        }
+        if self.stars_killed > 0 {
+            println!("{} stars blown up:              -{}", &self.stars_killed, self.stars_killed * 10);
+        }
+        if self.ididit {
+            println!("Caught using a cloaking device: -100");
+        }
+        if self.ships_lost > 0 {
+            println!("{} ships lost:                  -{}", &self.ships_lost, self.ships_lost * 400);
+        }
+        if !self.alive {
+            println!("Penalty for getting killed:     -200")
+        }
+
+        println!("\nTOTAL SCORE: {}", self.get_score());
     }
 
     pub fn kill_klingon (&mut self) {

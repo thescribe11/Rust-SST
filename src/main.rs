@@ -109,7 +109,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
             CommandType::Report => {},
             CommandType::Request(what) => {},
             CommandType::Rest(duration) => {},
-            CommandType::Score => {},
+            CommandType::Score => uni.score.print_score(),
             CommandType::SensorScan => {},
             CommandType::Shields(m, amount) => {},
             CommandType::Shuttle => {},
@@ -119,7 +119,14 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
             CommandType::Transporter(qubit) => {},
             CommandType::Warp(factor) => {}
         }
+
+        if uni.klingons == 0 {
+            println!("\nThe last Klingon battlecruiser has been destroyed, and the invasion thwarted. Good job!");
+            break;
+        }
     }
+
+    return Ok(())
 }
 
 mod tests {
