@@ -20,9 +20,11 @@ deathray.rs - logic for the experimental deathray
 mod structs;
 mod Input;
 mod constants;
+mod events;
 
-use Input::{input, freeze, thaw, CommandType, em_exit, get_yorn, prout, slow_prout};
+use Input::{input, freeze, thaw, CommandType, em_exit, get_yorn, slow_prout};
 use structs::Universe;
+use events::DeathReason;
 
 
 fn main() {
@@ -69,7 +71,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
         match Input::parse_args(input("\nCommad > ")) {
             CommandType::Abandon => {
                 if get_yorn("Are you sure you want to abandon ship? ") {
-                    prout("");
+                    println!("");
                     
                     // TODO: Add the rest of the logic
                     uni.abandon_ship();
@@ -101,7 +103,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
             CommandType::PlanetReport => {},
             CommandType::Probe(yorn, mode, deltas) => {},
             CommandType::Quit => {
-                prout("\nGoodbye.\n");
+                println!("\nGoodbye.\n");
                 return Ok(())
             },
             CommandType::Report => {},
@@ -113,7 +115,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
             CommandType::Shuttle => {},
             CommandType::SrScan => uni.srscan(),
             CommandType::StarChart => uni.starchart(),
-            CommandType::Torpedo(num, deltas) => {},
+            CommandType::Torpedo(num, deltas) => uni.torpedo(num, deltas),
             CommandType::Transporter(qubit) => {},
             CommandType::Warp(factor) => {}
         }
@@ -149,8 +151,10 @@ mod tests {
     }
 
     #[test]
-    fn test_srscan () {
+    fn test_scans () {
         let mut uni = crate::Universe::new(String::from("James Kirk").split(' ').into_iter().map(|e| String::from(e)).collect(), String::from("asdf"), 1u8);
         uni.srscan();
+        uni.lrscan();
+        uni.starchart();
     }
 }

@@ -1,9 +1,9 @@
 //! Contains all the various data structs used by the program.
 extern crate rand;
-use rand::Rng;
+use rand::{Rng, random};
 use serde::{Serialize, Deserialize};
-use std::iter::FromIterator;
-use crate::{Input::ControlMode, constants::{DEBUG, ALGERON}, prout, slow_prout};
+use std::{iter::FromIterator};
+use crate::{Input::{ControlMode, input, get_args}, constants::{DEBUG, ALGERON}, events::DeathReason, slow_prout};
 
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
@@ -92,6 +92,8 @@ pub struct Universe {
     pub score: Score,
     pub starbases: u32,
     pub ididit: bool,
+    pub alive: bool,
+    pub death_reason: DeathReason,
 
     stardate: f64,
     time_remaining: f64,
@@ -132,6 +134,8 @@ impl Universe {
             score: Score::new(),
             starbases,
             ididit: false,
+            alive: true,
+            death_reason: DeathReason::None,
 
             stardate: (100.0f64*(31.0*rand::random::<f64>()+20.0)) as f64,
             time_remaining: 0.0,
@@ -231,11 +235,11 @@ impl Universe {
         self.quadrants[vert][horiz].is_supernova.clone()
     }
 
-    pub fn sector(&self, loc: &usize) -> u8 {
+    pub fn sector (&self, loc: &usize) -> u8 {
         self.quadrants[self.qvert][self.qhoriz].sectors[*loc]
     }
 
-    pub fn get_quadrant(&self) -> Quadrant {
+    pub fn get_quadrant (&self) -> Quadrant {
         self.quadrants[self.qvert][self.qhoriz].clone()
     }
 
@@ -254,8 +258,8 @@ impl Universe {
             self.alert_level = Alert::Red
         }
 
-        prout("    1 2 3 4 5 6 7 8 9 10");
-        prout("  ┏━━━━━━━━━━━━━━━━━━━━━┓");
+        println!("    1 2 3 4 5 6 7 8 9 10");
+        println!("  ┏━━━━━━━━━━━━━━━━━━━━━┓");
 
         if self.damage.srsensors == 0 { // Chart quadrant, but only if the short-range sensors are undamaged.
             self.charted[self.qvert][self.qhoriz] = true;
@@ -331,11 +335,11 @@ impl Universe {
         slow_prout("This is your captain speaking. We are abandoning ship. Please make your way to the nearest escape pod.");
 
         if self.damage.shuttles == 0 {
-            prout("You and your core crew escape in the Enterprise's shuttles, and eventually make your way to a mothballed ship - the Faerie Queen.");
+            println!("You and your core crew escape in the Enterprise's shuttles, and eventually make your way to a mothballed ship - the Faerie Queen.");
             if self.damage.transporter == 0 {
-                prout("The Enterprise's remaining complement beam down to the nearest planet, where they are quickly captured.");
+                println!("The Enterprise's remaining complement beam down to the nearest planet, where they are quickly captured.");
             } else {
-                prout("Unable to escape the ship, your remaining crewmembers are killed.");
+                println!("Unable to escape the ship, your remaining crewmembers are killed.");
             }
         }
     }
@@ -347,7 +351,7 @@ impl Universe {
         //! information.
 
         if self.damage.lrsensors > 0 {
-            prout("[*Mr. Spock*] Sir, the long range sensors are inoperable due to damage.");
+            println!("[*Mr. Spock*] Sir, the long range sensors are inoperable due to damage.");
             return;
         }
 
@@ -356,7 +360,7 @@ impl Universe {
         for i in self.qvert as i32-1..=self.qvert as i32+1 {
             for j in self.qhoriz as i32-1..=self.qhoriz as i32 +1 {
                 if i<0 || i>7 || j<0 || j>7 {  // Galactic border
-                    print!("  -1 ");
+                    print!("   -1");
                     continue; // Don't try to chart out-of-bounds areas.
                 }
                 
@@ -364,7 +368,7 @@ impl Universe {
                     print!(" 1000")
                 } else {  // Regular quadrant
                     let (x, y, z) = self.quadrants[i as usize][j as usize].poll_lrscan();
-                    print!(" {}{}{}", x, y, z);
+                    print!("  {}{}{}", x, y, z);
                 }
                 self.charted[i as usize][j as usize] = true;
             }
@@ -391,6 +395,149 @@ impl Universe {
             println!("┃");
         }
         println!("  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛");
+    }
+
+    pub fn torpedo (&mut self, num: Option<u8>, deltas: Vec<u8>) {
+        //! Fire torpedoes
+
+        // Get # of torpedoes to fire
+        let to_fire = match num {
+            Some(i) => i,
+            None => {
+                let x = input("How many torpedoes would you like to fire? ");
+                match x.parse::<u8>() {
+                    Ok(i) => i,
+                    Err(_) => {
+                        println!("Sir, I can't fire \"{}\" torpedoes.", x);
+                        return;
+                    }
+                }
+            }
+        };
+
+        // Check for invalid cases
+        if to_fire > self.torpedoes {
+            println!("[*Armory*] What do you think we are, the Bank of Ferenginar?");
+            return;
+        } else if to_fire == 0 {
+            return;
+        } else if to_fire > self.torpedoes {
+            println!("[*Armory*] We can't fire that many sir; we only {} left.", &self.torpedoes);
+            return
+        } else if to_fire > 3 {
+            println!("[*Armory*] Sir, we can only fire three at a time; any more and we would melt the tubes!")
+        }
+
+        let _d = match deltas.len() {  // Get a firing solution if there isn't already one.
+            0 => {
+                let mut _d: Vec<u8> = Vec::new();
+                let mut index: usize = 0;
+                while index < to_fire as usize {
+                    print!("Input direction for torpedo #{}: ", index+1);
+                    let raw: Vec<u8> = match get_args(input("")) {
+                        Some(v) => {index += v.len(); v},
+                        None => {
+                            println!("[*Armory*] Sir, that doesn't make sense.");
+                            return
+                        }
+                    };
+                }
+                _d
+            },
+            _ => deltas
+        };
+
+        // Parse firing solution
+        let solution: Vec<i8> = _d.into_iter().map(|x| match x%8 {
+            1 => 1,
+            2 => -9,
+            3 => -10,
+            4 => -11,
+            5 => -1,
+            6 => 9,
+            7 => 10,
+            8 => 11,
+            _ => panic!("_d shouldn't contain any value which isn't between 0 and 8 post-modulo!")
+        }).collect::<Vec<i8>>();
+
+        let mut torp_num = 0;
+        for delta in solution {
+            torp_num += 1;
+            let mut torp_loc: i8 = self.sloc as i8;
+            print!("Track for torpedo #{}: ", &torp_num);
+
+            loop {
+                torp_loc += delta;
+                if torp_loc < 0 || torp_loc > 9 {
+                    break;
+                }
+
+                match self.get_quadrant().get_entity(torp_loc as usize) {
+                    Some((t, loc, he, al)) => match t {
+                        EntityType::BlackHole => {
+                            println!("\n Torpedo swallowed by black hole.");
+                            break;
+                        },
+                        EntityType::Klingon => {  // Klingons are always destroyed by torpedoes, although I might want to change this later.
+                            println!("\n ***Klingon at sector ({}, {}) destroyed.", (torp_loc/10)+1, (torp_loc%10)+1);
+                            self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
+                            self.score.kill_klingon();
+                        },
+                        EntityType::Romulan => {
+                            match random::<u8>() {
+                                0..=200 => {  // Romulan dies
+                                    println!("\n ***Romulan at sector ({}, {}) destroyed.", (torp_loc/10)+1, (torp_loc%10)+1);
+                                    self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
+                                    self.score.kill_romulan();
+                                },
+                                201..=255 => {
+                                    self.quadrants[self.qvert][self.qhoriz].damage_entity(torp_loc as usize, 500);
+                                    self.score.kill_romulan()
+                                }
+                            }
+                        },
+                        EntityType::Star => {
+                            println!("\n ***Torpedo impacts star at sector ({}, {}), causing it to go nova.", (torp_loc/10)+1, (torp_loc%10)+1);
+                            for i in [torp_loc-11, torp_loc-10, torp_loc-9, torp_loc-1, torp_loc, torp_loc+1, torp_loc+9, torp_loc+10, torp_loc+11] {
+                                if i > -1 && i < 100 {
+                                    match self.get_quadrant().sectors[i as usize] {
+                                        1 => self.score.kill_star(),
+                                        2 => self.score.kill_starbase(),
+                                        3 => self.score.kill_klingon(),
+                                        4 => self.score.kill_romulan(),
+                                        5 => continue,  // Novas don't do anything to black holes either.
+                                        6 => self.score.kill_tholian(),
+                                        7 => self.score.kill_unknown(),
+                                        8 => {},
+                                        _ => panic!("Somehow a corrupted value has gotten into the sector map.")
+                                    }
+                                    self.quadrants[self.qvert][self.qhoriz].kill_entity(i as usize);
+                                }
+                            }
+                        }
+                        EntityType::Starbase => {
+                            println!("\n ***Friendly starbase at sector ({}, {}) destroyed. You murderer.", (torp_loc/10)+1, (torp_loc%10)+1);
+                            self.score.kill_starbase();
+                            self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
+                        },
+                        EntityType::Unknown => {
+                            println!("\n *** ??? at sector ({}, {}) destroyed.", (torp_loc/10)+1, (torp_loc%10)+1);
+                            self.score.kill_unknown();
+                            self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
+                        },
+                        EntityType::Tholian => {
+                            println!("\n ***Tholian at sector ({}, {}) destroyed. Good shot!", (torp_loc/10)+1, (torp_loc%10)+1);
+                            self.score.kill_tholian();
+                            self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
+                        },
+                        EntityType::Planet => {
+                            println!("\n ***Planet at sector ({}, {}) destroyed. You murderer.", (torp_loc/10)+1, (torp_loc%10)+1);
+                        },
+                    }
+                    None => print!("({}, {}), ", (torp_loc/10)+1, (torp_loc%10)+1)
+                }
+            }
+        }
     }
 }
 
@@ -429,6 +576,7 @@ impl Quadrant {
         let mut randint = rand::thread_rng();
         let mut klingons = 0;
         let mut romulans = 0;
+        let mut stars = 0;
 
         // Difficulty level stuff
         let mut max_klingons: i32 = randint.gen_range(0..match difficulty {
@@ -455,7 +603,7 @@ impl Quadrant {
                     self.entities.push((
                         EntityType::Klingon,
                         i,
-                        Health::Health(randint.gen_range(150..=300)),
+                        Health::new(randint.gen_range(150..=300), true),
                         Alignment::Enemy
                     ));
                 },
@@ -464,13 +612,30 @@ impl Quadrant {
                     self.entities.push((
                         EntityType::Romulan,
                         i,
-                        Health::Health(randint.gen_range(250..500)),
+                        Health::new(randint.gen_range(250..600), true),
                         Alignment::Enemy
                     ));
                     4
                 } else {1},      // Romulan
-                7..=8 => self.sectors[i] = 5,  // Black hole.
-                9..=13 => {self.sectors[i] = 1; self.stars += 1}, // Star
+                7..=8 => {
+                    self.sectors[i] = 5;
+                    self.entities.push((
+                        EntityType::BlackHole,
+                        i,
+                        Health::new(i32::MAX, false),
+                        Alignment::Neutral
+                    ));
+                },  // Black hole.
+                9..=13 => if stars < 10 {
+                    self.sectors[i] = 1;
+                    self.stars += 1;
+                    self.entities.push((
+                        EntityType::Star,
+                        i,
+                        Health::new(i32::MAX, false),
+                        Alignment::Neutral,
+                    ))
+                }, // Star
                 _ => {}
             }  
         }
@@ -491,7 +656,7 @@ impl Quadrant {
            match self.sectors[location] {
                0 => {
                    self.sectors[location] = 2;
-                   self.entities.push((EntityType::Starbase, location, Health::Health(2500), Alignment::Neutral));
+                   self.entities.push((EntityType::Starbase, location, Health::new(2500, false), Alignment::Neutral));
                    break
                 },  // Sector unoccupied; add a starbase and return
                _ => continue  // Sector occupied; continue searching for an empty spot
@@ -524,6 +689,28 @@ impl Quadrant {
 
         return to_return
     }
+
+    pub fn kill_entity (&mut self, location: usize) {
+        for e in 0..self.entities.len() {
+            if self.entities[e].1 == location {
+                
+
+                self.entities.remove(e);
+                break;
+            }
+        }
+        self.sectors[location] = 0;
+    }
+
+    pub fn damage_entity (&mut self, location: usize, amount: i32) -> Option<bool> {
+        for e in 0..self.entities.len() {
+            if self.entities[e].1 == location {
+                self.entities[e].2.amount -= amount
+            }
+        }
+
+        return None
+    }
 }
 
 
@@ -535,8 +722,10 @@ pub struct Score {
     planets_killed: i32,
     bases_killed: i32,
     stars_killed: i32,
-    ididit: bool,
+    others_killed: i32,
+    ididit: bool,  // Whether or not you've been caught violating the Treaty of Algeron
     alive: bool,
+    ships_lost: i32,
 }
 
 impl Score {
@@ -548,8 +737,10 @@ impl Score {
             planets_killed: 0,
             bases_killed: 0,
             stars_killed: 0,
+            others_killed: 0,
             ididit: false,
             alive: true,
+            ships_lost: 0,
         }
     }
 
@@ -559,6 +750,8 @@ impl Score {
             self.romulans_killed * 150
             +
             self.tholians_killed * 300
+            +
+            self.others_killed * 50
             -
             self.bases_killed * 500
             -
@@ -573,6 +766,48 @@ impl Score {
                 true => 0,
                 false => 100,
             }
+            -
+            self.ships_lost * 400  // Losing a ship is a big dill.
+    }
+
+    pub fn kill_klingon (&mut self) {
+        self.klingons_killed += 1;
+    }
+
+    pub fn kill_romulan (&mut self) {
+        self.romulans_killed += 1;
+    }
+
+    pub fn kill_tholian (&mut self) {
+        self.tholians_killed += 1;
+    }
+
+    pub fn kill_starbase (&mut self) {
+        self.bases_killed += 1;
+    }
+
+    pub fn kill_star (&mut self) {
+        self.stars_killed += 1;
+    }
+
+    pub fn kill_planet (&mut self) {
+        self.planets_killed += 1;
+    }
+
+    pub fn kill_unknown (&mut self) {
+        self.others_killed += 1;
+    }
+
+    pub fn doit (&mut self) {
+        self.ididit = true;
+    }
+
+    pub fn die (&mut self) {
+        self.alive = false;
+    }
+
+    pub fn lose_ship (&mut self) {
+        self.ships_lost += 1;
     }
 }
 
@@ -586,13 +821,19 @@ pub enum EntityType {
     Unknown,
     Tholian,
     Planet,
+    BlackHole,
 }
 
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Health {
-    Health(u16),
-    Inf
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+struct Health {
+    pub amount: i32,
+    pub is_enemy: bool,
+}
+impl Health {
+    fn new(amount: i32, alignment: bool) -> Health {
+        Health { amount, is_enemy: alignment }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
