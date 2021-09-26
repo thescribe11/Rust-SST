@@ -6,6 +6,7 @@ use termion::style::{Bold, NoBold};
 
 use std::{iter::FromIterator};
 
+use crate::Input::abbrev;
 use crate::{Input::{ControlMode, input, get_args}, constants::{DEBUG, ALGERON}, events::DeathReason, slow_prout};
 
 
@@ -125,6 +126,7 @@ pub struct Universe {
     pub damage: Damage,
 
     pub warp_factor: f64,
+    pub cloaked: bool,
 }
 
 impl Universe {
@@ -173,6 +175,7 @@ impl Universe {
             alert_level: Alert::Green,
             warp_factor: 4.0,
             shield_status: false,
+            cloaked: false,
         };
 
         to_return.quadrants[to_return.qvert][to_return.qhoriz].sectors[to_return.sloc] = 8;
@@ -562,6 +565,83 @@ impl Universe {
                 }
             }
         }
+    }
+
+    pub fn move_it (&mut self, use_impulse: bool, m: ControlMode, deltas: Vec<i32>) {
+        //! Move the Enterprise.
+        //! Speed should be `self.warp_factor` for normal warp movement.
+        //! Set it to 0.5 for impulse (sublight) drive.
+
+        // Check to make sure the drive the player wants to move isn't damaged or unusable
+        if use_impulse && self.damage.impulse_drive > 0 {
+            println!("[*Engineering*] Sir, the Impulse Drive is inoperable. We canna' use it.");
+            return
+        } else if !use_impulse && self.damage.warp_drive > 0 {
+            println!("[*Engineering*] Sir, the warp drive is damaged! Using it right now would blow the ship to smithereens!");
+            return
+        } else if !use_impulse && self.cloaked {
+            println!("[*Engineering*] We canna' use the warp drive while the claoking device is active!");
+            println!("[*Engineering*] ... that said, I could probably give you impulse.");
+            return;
+        }
+
+        let mode = match m {
+            ControlMode::Undefined => match input("[*Helm*] Manual or automatic (computer-assisted) movement? ") {
+                i if abbrev(&i, "a", "automatic") => ControlMode::Auto,
+                i if abbrev(&i, "m", "manual") => ControlMode::Manual,
+                _ => {
+                    println!("[*Helm*] I didn't quite catch that, sir.");
+                    return;
+                }
+            },
+            _ => m
+        };
+
+        let (qvdiff, qhdiff, svdiff, shdiff) = match mode {
+            ControlMode::Manual => match deltas.len() {  // The user wants to manually manually enter directions
+                0 => {  // The user has not entered any locations
+                    match match get_args::<i32>(input("Input offsets: ")) {  // Match match revolution!
+                        Some(x) => x,
+                        None => {
+                            println!("[*Helm*] Sir, that makes no sense whatsoever.");
+                            return;
+                        }
+                    } {
+                        _i if _i.len() == 0 => {
+                            return;
+                        },
+                        i if i.len() == 2 => {
+                            (0, 0, i[0], i[1])
+                        },
+                        i if i.len() == 4 => {
+                            (i[0], i[1], i[2], i[3])
+                        },
+                        _ => {
+                            println!("[*Helm*] I don't recognize that coordinate system.");
+                            return;
+                        }
+                    }
+                },
+                2 => (0, 0, deltas[0], deltas[1]),  // Intra-quadrant movement
+                4 => {  // Extra-quadrant movement
+                    (deltas[0], deltas[1], deltas[2], deltas[3])
+                },  // Bad input
+                _ => {
+                    println!("[*Helm*] Huh?");
+                    return;
+                }
+            },
+            ControlMode::Auto => match deltas.len() {
+                0 => todo!(),
+                2 => todo!(),
+                4 => todo!(),
+                _ => {
+                    println!("[*Computer*] Input Error (error code 1d10t)");
+                    return;
+                }
+            },
+            ControlMode::Undefined => panic!("This should be an unreachable state!"),
+        };
     }
 }
 
