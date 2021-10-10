@@ -19,4 +19,11 @@ fn main() {
     println!("45/8: {}", 45/8);
 
     println!("Location: 49. Output: Sector {} {}", 49/8, 49%8);
+
+    println!("{}", 35 as usize / 10);
+
+    let distance: f64 = 3.0;
+
+    println!("{}", (distance+0.05) * 4.0_f64.powi(3) * (true as u8) as f64);
+    println!("{}", 1.05 * 4.0_f64.powi(3) * (true as u8) as f64 * 3.0);
 }

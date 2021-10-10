@@ -277,23 +277,26 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
     }
     else if abbrev(&tokens[0], "i", "impulse") {
         match tokens.len() {
-            1 => return CommandType::Impulse(ControlMode::Undefined, vec!()),
-            2..=6 => {
-                let mode = if tokens[1].starts_with('a') && "automatic".contains(&tokens[1]) {
-                    ControlMode::Auto
-                } else if tokens[1].starts_with('m') && "manual".contains(&tokens[1]) {
-                    ControlMode::Manual
-                } else {
-                    println!("[*Helm*] {} is not a valid movement type.", &tokens[1]);
-                    return CommandType::Error
-                };
-
-                return CommandType::Impulse(mode, match convert_vec(strip(&mut tokens.clone(), 2, tokens.len()).unwrap()) {
-                    Some(i) => i,
-                    None => {
+            1 => return CommandType::Impulse(None, None),
+            2..=3 => {
+                let angle = match tokens[1].parse::<f64>() {
+                    Ok(a) => a,
+                    Err(_) => {
                         println!(r#"[*Helm*] Sir, "second to the right, turn left after the sun and then straight on till morning" isn't a valid direction."#);
                         return CommandType::Error
                     }
+                };
+
+                return CommandType::Impulse(Some(angle), match tokens.len() {
+                    2 => None,
+                    3 => Some(match tokens[2].parse::<f64>() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("[*Helm*] That isn't a distance.");
+                            return CommandType::Error
+                        }
+                    }),
+                    _ => panic!("This shouldn't be happening!")
                 })
             },
             _ => {
@@ -320,30 +323,27 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
     }
     else if abbrev(&tokens[0], "mo", "move") {
         match tokens.len() {
-            1 => return CommandType::Move(ControlMode::Undefined, vec!()),
-            2..=6 => {let mode = if abbrev(&tokens[1], "a", "automatic") {
-                    ControlMode::Auto
-                } else if abbrev(&tokens[1], "m", "manual") {
-                    ControlMode::Manual
-                } else {
-                    println!("[*Helm*] {} is not a valid movement type.", &tokens[1]);
-                    return CommandType::Error
+            1 => return CommandType::Move(None, None),
+            2..=3 => {
+                let angle = match tokens[1].parse::<f64>() {
+                    Ok(a) => a,
+                    Err(_) => {
+                        println!(r#"[*Helm*] Sir, "second to the right, turn left after the sun and then straight on till morning" isn't a valid direction."#);
+                        return CommandType::Error
+                    }
                 };
 
                 let _x = tokens.len();
-                return CommandType::Move(mode, match convert_vec(
-                    match strip(&mut tokens, 2, _x) {
-                        Some(s) => s,
-                        None => {
-                            println!("[*Helm*] Say again, sir?");
+                return CommandType::Move(Some(angle), match tokens.len() {
+                    2 => None,
+                    3 => Some(match tokens[2].parse::<f64>() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            println!("[*Helm*] That isn't a distance.");
                             return CommandType::Error
                         }
-                    }) {
-                    Some(i) => i,
-                    None => {
-                        println!("[*Helm*] Sir, those directions make no sense!");
-                        return CommandType::Error
-                    }
+                    }),
+                    _ => panic!("This shouldn't be happening!")
                 })
             },
             _ => {
@@ -597,11 +597,11 @@ pub enum CommandType {
     Error,
     Freeze(String),
     Help(String),
-    Impulse(ControlMode, Vec<i32>),
+    Impulse(Option<f64>, Option<f64>),
     Load(String),
     LrScan,
     Mine,
-    Move(ControlMode, Vec<i32>),
+    Move(Option<f64>, Option<f64>),
     Orbit,
     Phasers(ControlMode, Vec<f32>),
     PlanetReport,

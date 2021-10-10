@@ -7,29 +7,29 @@ use termion::style::{Bold, NoBold};
 use std::{iter::FromIterator};
 
 use crate::Input::abbrev;
-use crate::{Input::{ControlMode, input, get_args}, constants::{DEBUG, ALGERON}, events::DeathReason, slow_prout};
+use crate::{Input::{ControlMode, input, get_args}, constants::{DEBUG, ALGERON}, finish::DeathReason, slow_prout};
 
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct Damage {
     // Critical infrastructure
-    reactors: u32,
-    life_support: u32,
-    warp_drive: u32,
-    impulse_drive: u32,
+    pub reactors: u32,
+    pub life_support: u32,
+    pub warp_drive: u32,
+    pub impulse_drive: u32,
     
     // Weapons
-    phasers: u32,
-    torpedoes: u32,
-    tractors: u32,
-    deathray: u32,
+    pub phasers: u32,
+    pub torpedoes: u32,
+    pub tractors: u32,
+    pub deathray: u32,
 
     // Accessories
-    radio: u32,
-    transporter: u32,
-    shuttles: u32,
-    lrsensors: u32,
-    srsensors: u32,
+    pub radio: u32,
+    pub transporter: u32,
+    pub shuttles: u32,
+    pub lrsensors: u32,
+    pub srsensors: u32,
 }
 
 impl Damage {
@@ -98,9 +98,10 @@ pub struct Universe {
     pub ididit: bool,
     pub alive: bool,
     pub death_reason: DeathReason,
+    pub leave_attempts: u8,
 
-    stardate: f64,
-    time_remaining: f64,
+    pub stardate: f64,
+    pub time_remaining: f64,
 
     pub quadrants: [[Quadrant; 8]; 8],
     charted: [[bool; 8]; 8],
@@ -141,6 +142,7 @@ impl Universe {
             ididit: false,
             alive: true,
             death_reason: DeathReason::None,
+            leave_attempts: 0,
 
             stardate: (100.0f64*(31.0*rand::random::<f64>()+20.0)) as f64,
             time_remaining: 0.0,
@@ -245,8 +247,20 @@ impl Universe {
         self.quadrants[self.qvert][self.qhoriz].sectors[*loc]
     }
 
-    pub fn get_quadrant (&self) -> Quadrant {
+    pub fn get_quadrant (&self) ->  Quadrant {
         self.quadrants[self.qvert][self.qhoriz].clone()
+    }
+
+    pub fn get_other_quadrant (&self, qvert: &usize, qhoriz: &usize) -> Quadrant {
+        self.quadrants[*qvert][*qhoriz].clone()
+    }
+
+    pub fn die (&mut self, reason: DeathReason) {
+        //! The ship has been destroyed. Game over.
+
+        self.alive = false;
+        self.death_reason = reason;
+        self.score.lose_ship();
     }
 
     pub fn srscan (&mut self) {
@@ -486,7 +500,7 @@ impl Universe {
             loop {
                 torp_loc += delta;
                 if torp_loc < 0 || torp_loc > 99 {
-                    println!("Out of bounds; breaking.");
+                    println!("\nTorpedo misses.");
                     break;
                 }
 
@@ -499,7 +513,7 @@ impl Universe {
                             },
                             EntityType::Klingon => {  // Klingons are always destroyed by torpedoes, although I might want to change this later.
                                 println!("\n ***Klingon at sector ({}, {}) destroyed.", (torp_loc/10)+1, (torp_loc%10)+1);
-                                self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
+                                self.quadrants[self.qvert][self.qhoriz].kill_entity(&(torp_loc as usize));
                                 self.score.kill_klingon();
                                 self.klingons -=1;
                             },
@@ -507,7 +521,7 @@ impl Universe {
                                 match random::<u8>() {
                                     0..=200 => {  // Romulan dies
                                         println!("\n ***Romulan at sector ({}, {}) destroyed.", (torp_loc/10)+1, (torp_loc%10)+1);
-                                        self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
+                                        self.quadrants[self.qvert][self.qhoriz].kill_entity(&(torp_loc as usize));
                                         self.score.kill_romulan();
                                     },
                                     201..=255 => {
@@ -518,9 +532,9 @@ impl Universe {
                             },
                             EntityType::Star => {
                                 println!("\n ***Torpedo impacts star at sector ({}, {}), causing it to go nova.", (torp_loc/10)+1, (torp_loc%10)+1);
-                                for i in [torp_loc-11, torp_loc-10, torp_loc-9, torp_loc-1, torp_loc, torp_loc+1, torp_loc+9, torp_loc+10, torp_loc+11] {
-                                    if i > -1 && i < 100 {
-                                        match self.get_quadrant().sectors[i as usize] {
+                                for i in &[torp_loc-11, torp_loc-10, torp_loc-9, torp_loc-1, torp_loc, torp_loc+1, torp_loc+9, torp_loc+10, torp_loc+11] {
+                                    if *i > -1 && *i < 100 {
+                                        match self.get_quadrant().sectors[*i as usize] {
                                             0 => {},  // Empty space; do nothing.
                                             1 => self.score.kill_star(),
                                             2 => self.score.kill_starbase(),
@@ -531,28 +545,28 @@ impl Universe {
                                             7 => self.score.kill_unknown(),
                                             8 => {},
                                             _ => {
-                                                println!("{}", self.get_quadrant().sectors[i as usize]);
+                                                println!("{}", self.get_quadrant().sectors[*i as usize]);
                                                 panic!("Somehow a corrupted value has gotten into the sector map.")
                                             }
                                         }
-                                        self.quadrants[self.qvert][self.qhoriz].kill_entity(i as usize);
+                                        self.quadrants[self.qvert][self.qhoriz].kill_entity(&(*i as usize));
                                     }
                                 }
                             }
                             EntityType::Starbase => {
                                 println!("\n ***Friendly starbase at sector ({}, {}) destroyed. You murderer.", (torp_loc/10)+1, (torp_loc%10)+1);
                                 self.score.kill_starbase();
-                                self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
+                                self.quadrants[self.qvert][self.qhoriz].kill_entity(&(torp_loc as usize));
                             },
                             EntityType::Unknown => {
                                 println!("\n *** ??? at sector ({}, {}) destroyed.", (torp_loc/10)+1, (torp_loc%10)+1);
                                 self.score.kill_unknown();
-                                self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
+                                self.quadrants[self.qvert][self.qhoriz].kill_entity(&(torp_loc as usize));
                             },
                             EntityType::Tholian => {
                                 println!("\n ***Tholian at sector ({}, {}) destroyed. Good shot!", (torp_loc/10)+1, (torp_loc%10)+1);
                                 self.score.kill_tholian();
-                                self.quadrants[self.qvert][self.qhoriz].kill_entity(torp_loc as usize);
+                                self.quadrants[self.qvert][self.qhoriz].kill_entity(&(torp_loc as usize));
                             },
                             EntityType::Planet => {
                                 println!("\n ***Planet at sector ({}, {}) destroyed. You murderer.", (torp_loc/10)+1, (torp_loc%10)+1);
@@ -567,88 +581,40 @@ impl Universe {
         }
     }
 
-    pub fn move_it (&mut self, use_impulse: bool, m: ControlMode, deltas: Vec<i32>) {
-        //! Move the Enterprise.
-        //! Speed should be `self.warp_factor` for normal warp movement.
-        //! Set it to 0.5 for impulse (sublight) drive.
 
-        // Check to make sure the drive the player wants to move isn't damaged or unusable
-        if use_impulse && self.damage.impulse_drive > 0 {
-            println!("[*Engineering*] Sir, the Impulse Drive is inoperable. We canna' use it.");
-            return
-        } else if !use_impulse && self.damage.warp_drive > 0 {
-            println!("[*Engineering*] Sir, the warp drive is damaged! Using it right now would blow the ship to smithereens!");
-            return
-        } else if !use_impulse && self.cloaked {
-            println!("[*Engineering*] We canna' use the warp drive while the claoking device is active!");
-            println!("[*Engineering*] ... that said, I could probably give you impulse.");
-            return;
+    /// The player is attempting to leave the galaxy.
+    ///
+    /// I can't let that happen, so the player gets two warnings.
+    ///
+    /// The third time they attempt this I will be forced to concede
+    /// the abominableness of their navigation, and so kill 'em.
+    #[allow(non_snake_case)]
+    pub fn NOPE (&mut self) {
+        if self.leave_attempts < 3 {
+            slow_prout("\nYOU HAVE ATTEMPTED TO CROSS THE NEGATIVE ENERGY BARRIER AT THE EDGE OF THE GALAXY.\nTHE THIRD TIME YOU TRY TO DO THIS YOU WILL BE DESTROYED.");
+            self.leave_attempts += 1;
+        } else {
+            self.alive = false;
+            self.score.lose_ship();
+            self.death_reason = DeathReason::GalaxyEdge;
         }
+    }
 
-        let mode = match m {
-            ControlMode::Undefined => match input("[*Helm*] Manual or automatic (computer-assisted) movement? ") {
-                i if abbrev(&i, "a", "automatic") => ControlMode::Auto,
-                i if abbrev(&i, "m", "manual") => ControlMode::Manual,
-                _ => {
-                    println!("[*Helm*] I didn't quite catch that, sir.");
-                    return;
-                }
-            },
-            _ => m
-        };
+    /// Set the universe's alert level.
+    pub fn set_alert_level(&mut self, alert_level: Alert) {
+        self.alert_level = alert_level;
+    }
 
-        let (qvdiff, qhdiff, svdiff, shdiff) = match mode {
-            ControlMode::Manual => match deltas.len() {  // The user wants to manually manually enter directions
-                0 => {  // The user has not entered any locations
-                    match match get_args::<i32>(input("Input offsets: ")) {  // Match match revolution!
-                        Some(x) => x,
-                        None => {
-                            println!("[*Helm*] Sir, that makes no sense whatsoever.");
-                            return;
-                        }
-                    } {
-                        _i if _i.len() == 0 => {
-                            return;
-                        },
-                        i if i.len() == 2 => {
-                            (0, 0, i[0], i[1])
-                        },
-                        i if i.len() == 4 => {
-                            (i[0], i[1], i[2], i[3])
-                        },
-                        _ => {
-                            println!("[*Helm*] I don't recognize that coordinate system.");
-                            return;
-                        }
-                    }
-                },
-                2 => (0, 0, deltas[0], deltas[1]),  // Intra-quadrant movement
-                4 => {  // Extra-quadrant movement
-                    (deltas[0], deltas[1], deltas[2], deltas[3])
-                },  // Bad input
-                _ => {
-                    println!("[*Helm*] Huh?");
-                    return;
-                }
-            },
-            ControlMode::Auto => match deltas.len() {
-                0 => todo!(),
-                2 => todo!(),
-                4 => todo!(),
-                _ => {
-                    println!("[*Computer*] Input Error (error code 1d10t)");
-                    return;
-                }
-            },
-            ControlMode::Undefined => panic!("This should be an unreachable state!"),
-        };
+    /// Get a reference to the universe's alert level.
+    pub fn alert_level(&self) -> &Alert {
+        &self.alert_level
     }
 }
 
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Quadrant {
-    sectors: Vec<u8>,  // [u8; 100] would be more efficient, but it doesn't play well with Serde.
+    pub sectors: Vec<u8>,  // [u8; 100] would be more efficient, but it doesn't play well with Serde.
     entities: Vec<(EntityType, usize, Health, Alignment)>,
     is_supernova: bool,
     klingons: u8,
@@ -663,7 +629,7 @@ impl Quadrant {
         let mut randint = rand::thread_rng();
 
         let mut to_return = Quadrant {
-            sectors: Vec::from_iter([0u8; 100]),  // 1 = star, 2 = starbase, 3 = klingon, 4 = romulan, 5 = black hole, 6 = tholian, 7 = unknown entity, 8 = player's ship
+            sectors: {let mut x = Vec::new(); x.extend_from_slice(&[0u8; 100]); x},  // 1 = star, 2 = starbase, 3 = klingon, 4 = romulan, 5 = black hole, 6 = tholian, 7 = unknown entity, 8 = player's ship
             entities: Vec::new(),
             is_supernova: false,
             klingons: 0,
@@ -675,7 +641,7 @@ impl Quadrant {
     }
 
     fn init (&mut self, difficulty: u8) -> u32 {
-        // Initialize the quadrant
+        //! Initialize the quadrant
 
         let mut randint = rand::thread_rng();
         let mut klingons = 0;
@@ -768,10 +734,12 @@ impl Quadrant {
         }
     }
 
+    /// Get vital statistics for long-range scanning
     fn poll_lrscan (&self) -> (u8, u8, u8) {
         (self.klingons, self.starbases, self.stars)
     }
 
+    /// Get a specific enemy based on its location in the sector
     pub fn get_entity (&self, location: usize) -> Option<(EntityType, usize, Health, Alignment)> {
         for i in self.entities.clone() {
             if i.1 == location {
@@ -782,6 +750,7 @@ impl Quadrant {
         return None
     }
 
+    /// Get all enemies of that type
     pub fn search (&self, entity: EntityType) -> Vec<(EntityType, usize, Health, Alignment)> {
         let mut to_return: Vec<(EntityType, usize, Health, Alignment)> = Vec::new();
 
@@ -794,18 +763,20 @@ impl Quadrant {
         return to_return
     }
 
-    pub fn kill_entity (&mut self, location: usize) {
+    /// Kill an enemy
+    pub fn kill_entity (&mut self, location: &usize) {
         for e in 0..self.entities.len() {
-            if self.entities[e].1 == location {
+            if &self.entities[e].1 == location {
                 
 
                 self.entities.remove(e);
                 break;
             }
         }
-        self.sectors[location] = 0;
+        self.sectors[*location] = 0;
     }
 
+    /// Apply damage to an enemy.
     pub fn damage_entity (&mut self, location: usize, amount: i32) -> Option<bool> {
         for e in 0..self.entities.len() {
             if self.entities[e].1 == location {
@@ -814,6 +785,11 @@ impl Quadrant {
         }
 
         return None
+    }
+
+    /// Get one of the quadrant's sectors
+    pub fn sector(&self, location: &usize) -> u8 {
+        self.sectors[*location].clone()
     }
 }
 

@@ -21,10 +21,12 @@ mod structs;
 mod Input;
 mod constants;
 mod events;
+mod finish;
+mod movement;
 
 use Input::{input, freeze, thaw, CommandType, em_exit, get_yorn, slow_prout};
 use structs::Universe;
-use events::DeathReason;
+use finish::DeathReason;
 
 
 fn main() {
@@ -97,7 +99,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
             CommandType::Load(file) => {},
             CommandType::LrScan => uni.lrscan(),
             CommandType::Mine => {},
-            CommandType::Move(mode, deltas) => uni.move_it(false, mode, deltas),
+            CommandType::Move(a, d) => uni.move_it(false, a, d),
             CommandType::Orbit => {},
             CommandType::Phasers(mode, targets) => {},
             CommandType::PlanetReport => {},
@@ -150,9 +152,6 @@ mod tests {
 
         println!("{:?}", parse_args(String::from("shields u")));
         println!("{:?}", parse_args(String::from("shield tra -110.45")));
-
-        assert_eq!(parse_args(String::from("move a 1 1")), CommandType::Move(ControlMode::Auto, vec![1, 1]));
-        assert_eq!(parse_args(String::from("im a 1 1")), CommandType::Impulse(ControlMode::Auto, vec![1, 1]));
 
         assert_eq!(parse_args(String::from("probe arm auto 1 1")), CommandType::Probe(true, ControlMode::Auto, vec![1, 1]));
     }
