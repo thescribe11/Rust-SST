@@ -18,13 +18,13 @@ deathray.rs - logic for the experimental deathray
 */
 
 mod structs;
-mod Input;
+mod io;
 mod constants;
 mod events;
 mod finish;
 mod movement;
 
-use Input::{input, freeze, thaw, CommandType, em_exit, get_yorn, slow_prout};
+use io::{input, freeze, thaw, CommandType, em_exit, get_yorn, slow_prout};
 use structs::Universe;
 use finish::DeathReason;
 
@@ -70,7 +70,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
     //! The game's main execution loop
     
     loop {
-        match Input::parse_args(input("\nCommad > ")) {
+        match io::parse_args(input("\nCommad > ")) {
             CommandType::Abandon => {
                 if get_yorn("Are you sure you want to abandon ship? ") {
                     println!("");
@@ -119,12 +119,20 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
             CommandType::StarChart => uni.starchart(),
             CommandType::Torpedo(num, deltas) => uni.torpedo(num, deltas),
             CommandType::Transporter(qubit) => {},
-            CommandType::Warp(factor) => {}
+            CommandType::Warp(factor) => {},
         }
 
         if uni.klingons == 0 {
             println!("\nThe last Klingon battlecruiser has been destroyed, and the invasion thwarted. Good job!");
             break;
+        }
+        match uni.death_reason {
+            DeathReason::None => continue,
+            i if true => {
+                println!("{:?}", i);
+                break;
+            },
+            _ => panic!("This shouldn't be reachable.")
         }
     }
 
@@ -132,7 +140,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
 }
 
 mod tests {
-    use crate::Input::{parse_args, CommandType, ControlMode};
+    use crate::io::{parse_args, CommandType, ControlMode};
 
     #[test]
     fn test_parser () {

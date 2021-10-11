@@ -6,8 +6,8 @@ use termion::style::{Bold, NoBold};
 
 use std::{iter::FromIterator};
 
-use crate::Input::abbrev;
-use crate::{Input::{ControlMode, input, get_args}, constants::{DEBUG, ALGERON}, finish::DeathReason, slow_prout};
+use crate::io::abbrev;
+use crate::{io::{ControlMode, input, get_args}, constants::{DEBUG, ALGERON}, finish::DeathReason, slow_prout};
 
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
@@ -608,6 +608,11 @@ impl Universe {
     /// Get a reference to the universe's alert level.
     pub fn alert_level(&self) -> &Alert {
         &self.alert_level
+    }
+
+    pub fn add_time (&mut self, diff: f64) {
+        self.time_remaining -= diff;
+        self.stardate += diff;
     }
 }
 

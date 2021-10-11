@@ -1,6 +1,6 @@
-use crate::Input::slow_prout;
+use crate::io::slow_prout;
 use crate::finish::DeathReason;
-use crate::{input, Input::abbrev};
+use crate::{input, io::abbrev};
 use crate::constants::DEBUG;
 
 impl crate::structs::Universe {
@@ -45,10 +45,6 @@ impl crate::structs::Universe {
             false => dh
         }.abs();
         dv /= bigger; dh /= bigger;  // This introduces some errors, but they're insignificant.
-
-        if DEBUG {
-            println!("Δvert: {}, Δhoriz: {}", &dv, &dh);
-        }
         
         let distance = match distance {
             Some(x) => x,
@@ -91,8 +87,8 @@ impl crate::structs::Universe {
         }
 
         let time = match use_impulse {
-            true => distance / 0.095,
-            false => 10.0*distance/self.warp_factor
+            true => distance*bigger / 0.095,
+            false => distance*bigger / self.warp_factor
         };
 
         if time > (self.time_remaining * 0.8) {  // Ask for confirmation if the trip takes more than 80% of the remaining time
@@ -113,16 +109,38 @@ impl crate::structs::Universe {
         }
 
         let mut interquad  = false;  // Has the Enterprise gone to a different quadrant?
-
         let (mut nsvert, mut nshoriz, mut nqvert, mut nqhoriz) = ((self.sloc / 10) as f64, self.sloc as f64 % 10 as f64, self.qvert as i32, self.qhoriz as i32);
+
+        if use_impulse {
+            self.energy -= 20.0;  // Initial warmup cost.
+        }
 
         // Having finished with the prerequisite data acquisition and confirmation, actually move the ship.
         for _i in 0..(distance * bigger).round() as usize {
             nshoriz += dh;
             nsvert += dv;
 
-            self.energy -= 1.05 * self.warp_factor.powi(3) * ((self.shield_status as u8 + 1) as f64);
-            
+            // Subtract time and energy.
+            match use_impulse {
+               false => {
+                   self.energy -= 1.05 * self.warp_factor.powi(3) * ((self.shield_status as u8 + 1) as f64);
+                   self.add_time(3.0*bigger/self.warp_factor);
+                },
+               true => {
+                   self.energy -= 100.0;
+                   self.add_time(0.95);
+               }
+            }
+
+            // Check to make sure that the player hasn't run out of time or gas.
+            if self.time_remaining <= 0.0 {
+                self.death_reason = DeathReason::TimeUp;
+                break;
+            } else if self.energy <= 0.0 {
+                self.death_reason = DeathReason::NoGas;
+                break;
+            }
+
             if nshoriz > 9.0 {
                 interquad = true;
                 nqhoriz += 1;
@@ -168,9 +186,6 @@ impl crate::structs::Universe {
             }
 
             let newloc = ((nsvert * 10.0) + nshoriz).round() as usize;
-            println!("Newloc: {}", newloc+1);
-
-            println!("{}, {}", nsvert+1.0, nshoriz+1.0);
 
             if !interquad {
                 match self.get_other_quadrant(&(nqvert as usize), &(nqhoriz as usize)).sector(&newloc) {
@@ -190,14 +205,8 @@ impl crate::structs::Universe {
                         break;
                     },
                     i if [3, 4, 6, 7].contains(&i) => {  // Enemy. Ramming speed!
-                        let enemy_type: f64 = match i {
-                            3 => 1.0,
-                            4 => 1.5,
-                            6 => 0.5,
-                            _ => 0.8,
-                        };
-
-                        self.quadrants[nqvert as usize][nqhoriz as usize].kill_entity(&newloc);
+                        self.ram(i, &nqvert, &nqhoriz, &newloc);
+                        break;
                     },
                     5 => {  // Black hole
                         slow_prout("***RED ALERT! RED ALERT!***");
@@ -205,7 +214,7 @@ impl crate::structs::Universe {
                         self.die(DeathReason::EventHorizon);
                     },
                     _ => {
-                        panic!("AAAAAAH!")
+                        panic!("AAAAAAH! Something unexpected occured!")
                     }
                 }
             }
@@ -224,5 +233,22 @@ impl crate::structs::Universe {
         println!("nqvert: {}; nqhoriz: {}; nsloc: {}", self.qvert as i32, self.qhoriz as i32, self.sloc as i32);
         self.quadrants[self.qvert][self.qhoriz].sectors[self.sloc] = 8;
         self.quadrants[old_qvert][old_qhoriz].sectors[old_sloc] = 0;
+    }
+
+    /// Ram an enemy ship.
+    ///
+    /// Args:
+    /// - loc: usize
+    pub fn ram (&mut self, i: u8, nqvert: &i32, nqhoriz: &i32, nloc: &usize) {
+        let enemy_type: f64 = match i {
+            3 => 1.0,
+            4 => 1.5,
+            6 => 0.5,
+            _ => 0.8,
+        };
+
+        self.quadrants[*nqvert as usize][*nqhoriz as usize].kill_entity(&nloc);
+
+
     }
 }
