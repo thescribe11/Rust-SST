@@ -1,7 +1,6 @@
 use crate::io::slow_prout;
 use crate::finish::DeathReason;
 use crate::{input, io::abbrev};
-use crate::constants::DEBUG;
 
 impl crate::structs::Universe {
     pub fn move_it (&mut self, use_impulse: bool, angle: Option<f64>, distance: Option<f64>) {
@@ -10,10 +9,10 @@ impl crate::structs::Universe {
         //! Set it to 0.5 for impulse (sublight) drive.
 
         // Check to make sure the drive the player wants to move isn't damaged or unusable
-        if use_impulse && self.damage.impulse_drive > 0 {
+        if use_impulse && self.damage.impulse_drive > 0.0 {
             println!("[*Engineering*] Sir, the Impulse Drive is inoperable. We canna' use it.");
             return
-        } else if !use_impulse && self.damage.warp_drive > 0 {
+        } else if !use_impulse && self.damage.warp_drive > 0.0 {
             println!("[*Engineering*] Sir, the warp drive is damaged! Using it right now would blow the ship to smithereens!");
             return
         } else if !use_impulse && self.cloaked {
@@ -65,7 +64,7 @@ impl crate::structs::Universe {
         };
 
         let power = match use_impulse {
-            false => 1.05 * self.warp_factor.powi(3) * (self.shield_status as u8) as f64 * (distance * bigger).round(),  // Shamelessly lifted from the Almy version
+            false => 1.05 * self.warp_factor.powi(2) * (self.shield_status as u8 + 1) as f64 * (distance * bigger).round(),  // Shamelessly lifted from the Almy version
             true => 20.0 + 100.0 * distance
         };
 
@@ -123,7 +122,7 @@ impl crate::structs::Universe {
             // Subtract time and energy.
             match use_impulse {
                false => {
-                   self.energy -= 1.05 * self.warp_factor.powi(3) * ((self.shield_status as u8 + 1) as f64);
+                   self.energy -= 1.05 * self.warp_factor.powi(2) * ((self.shield_status as u8 + 1) as f64);
                    self.add_time(3.0*bigger/self.warp_factor);
                 },
                true => {
@@ -187,6 +186,8 @@ impl crate::structs::Universe {
 
             let newloc = ((nsvert * 10.0) + nshoriz).round() as usize;
 
+            println!("Interquad: {}", &interquad);
+
             if !interquad {
                 match self.get_other_quadrant(&(nqvert as usize), &(nqhoriz as usize)).sector(&newloc) {
                     0 => continue,
@@ -228,11 +229,26 @@ impl crate::structs::Universe {
         self.place_ship(old_qvert, old_qhoriz, old_sloc);
     }  // End move_it
 
+    /// Place the ship in a new location after movement, shockwave knockback, etc.
+    /// 
+    /// Args:
+    /// - old_qvert: usize. The ship's old vertical location in the galaxy.
+    /// - old_qhoriz: usize. The ship's old horizontal location in the galaxy.
+    /// - old_sloc: usize. The ship's old location in the sector.
     pub fn place_ship (&mut self, old_qvert: usize, old_qhoriz: usize, old_sloc: usize) {
-        println!("oqvert: {}; oqhoriz: {}; osloc: {}", old_qvert, old_qhoriz, old_sloc);
-        println!("nqvert: {}; nqhoriz: {}; nsloc: {}", self.qvert as i32, self.qhoriz as i32, self.sloc as i32);
         self.quadrants[self.qvert][self.qhoriz].sectors[self.sloc] = 8;
         self.quadrants[old_qvert][old_qhoriz].sectors[old_sloc] = 0;
+
+        if self.get_quadrant().neutral_zone() && self.damage.radio == 0.0 {
+            println!("[*Lt. Uhura*] Captain, we're being hailed. I'll put it on audio.");
+            if self.ididit {
+                // The Romulans are royally pissed; skip the pleasantries.
+                println!("*click* DIE, TREACHEROUS HUMAN SCUM!!!");
+            } else {
+                // Courteously threaten to destroy the Enterprise.
+                println!("*click* Captain, I'm afraid you're violating the Romulan Neutral Zone. Please leave, lest your situation become... terminally unpleasant.");
+            }
+        }
     }
 
     /// Ram an enemy ship.
@@ -248,7 +264,29 @@ impl crate::structs::Universe {
         };
 
         self.quadrants[*nqvert as usize][*nqhoriz as usize].kill_entity(&nloc);
+        self.kill_enemy(&(*nqvert as usize), &(*nqhoriz as usize), &*nloc);
 
+        self.damage.add_ramming_damage(enemy_type);
 
+        println!("***Enemy ship at ({}, {}) destroyed in collision.", (nloc / 10) + 1, (nloc % 10) + 1);
     }
+
+    /// The player is attempting to leave the galaxy.
+    ///
+    /// I can't let that happen, so the player gets two warnings.
+    ///
+    /// The third time they attempt this I will be forced to concede
+    /// the abominableness of their navigation, and so kill 'em.
+    #[allow(non_snake_case)]
+    pub fn NOPE (&mut self) {
+        if self.leave_attempts < 3 {
+            slow_prout("\nYOU HAVE ATTEMPTED TO CROSS THE NEGATIVE ENERGY BARRIER AT THE EDGE OF THE GALAXY.\nTHE THIRD TIME YOU TRY TO DO THIS YOU WILL BE DESTROYED.");
+            self.leave_attempts += 1;
+        } else {
+            self.alive = false;
+            self.score.lose_ship();
+            self.death_reason = DeathReason::GalaxyEdge;
+        }
+    }
+
 }

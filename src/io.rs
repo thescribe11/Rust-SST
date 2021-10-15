@@ -133,7 +133,7 @@ pub fn thaw () -> Option<Universe>{
     let mut enc_data = String::new();
     match save_file.read_to_string(&mut enc_data) {
         Ok(_) => {},
-        Err(_) => {println!("\nERROR: The save file is corrupted."); return None}
+        Err(_) => {eprintln!("\nERROR: The save file is corrupted."); return None}
     }
 
     let raw_parts: Vec<String> = enc_data.split("\0")
@@ -143,7 +143,7 @@ pub fn thaw () -> Option<Universe>{
         .collect();
     
     if raw_parts[0] != pass {
-        println!("That password is incorrect. Goodbye.");
+        eprintln!("That password is incorrect. Goodbye.");
         return None
     }
     

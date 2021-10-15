@@ -1,95 +1,13 @@
 //! Contains all the various data structs used by the program.
 use rand::{Rng, random};
 use serde::{Serialize, Deserialize};
-use termion::color::{Blue, Fg, Green, Red, Reset, Yellow};
-use termion::style::{Bold, NoBold};
-
-use std::{iter::FromIterator};
-
-use crate::io::abbrev;
+use termion::color::{Blue, Fg, Green, Red, Reset};
 use crate::{io::{ControlMode, input, get_args}, constants::{DEBUG, ALGERON}, finish::DeathReason, slow_prout};
 
-
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
-pub struct Damage {
-    // Critical infrastructure
-    pub reactors: u32,
-    pub life_support: u32,
-    pub warp_drive: u32,
-    pub impulse_drive: u32,
-    
-    // Weapons
-    pub phasers: u32,
-    pub torpedoes: u32,
-    pub tractors: u32,
-    pub deathray: u32,
-
-    // Accessories
-    pub radio: u32,
-    pub transporter: u32,
-    pub shuttles: u32,
-    pub lrsensors: u32,
-    pub srsensors: u32,
-}
-
-impl Damage {
-    fn new () -> Damage {
-        Damage {
-            reactors: 0,
-            life_support: 0,
-            warp_drive: 0,
-            impulse_drive: 0,
-            phasers: 0,
-            torpedoes: 0,
-            tractors: 0,
-            deathray: 0,
-            radio: 0,
-            transporter: 0,
-            shuttles: 0,
-            lrsensors: 0,
-            srsensors: 0,
-        }
-    }
-
-    pub fn print_damage (&self) {
-        println!(
-"******** DAMAGE REPORT ********
-* == Core systems ==
-* Reactor Core:          {}
-* Life support systems:  {}    
-* Warp drive:            {}
-* Impulse drive:         {}
-*
-* == Weapons ==
-* Phasers:               {}
-* Photon torpedoes:      {}
-* Tractor beams:         {}
-* Experimental Deathray: {}
-*
-* == Peripheral Systems ==
-* Subspace Radio:        {}
-* Transporters:          {}
-* Shuttles:              {}
-* Long-Range Sensors:    {}
-* Short-Range Sensors:   {}", 
-    self.reactors as f32 / 10f32, 
-    self.life_support as f32 / 10f32, 
-    self.warp_drive as f32 / 10f32, 
-    self.impulse_drive as f32 / 10f32, 
-    self.phasers as f32 / 10f32, 
-    self.torpedoes as f32 / 10f32, 
-    self.tractors as f32 / 10f32, 
-    self.deathray as f32 / 10f32, 
-    self.radio as f32 / 10f32, 
-    self.transporter as f32 / 10f32, 
-    self.shuttles as f32 / 10f32,
-    self.lrsensors as f32 / 10f32,
-    self.srsensors as f32 / 10f32
-        )
-    }
-}
+use crate::damage::Damage;
 
 
+/// The main data struct. It encapsulates everything else.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Universe {
     pub klingons: u32,
@@ -223,14 +141,6 @@ impl Universe {
         self.klingons
     }
 
-    pub fn kill_klingons (&mut self, to_kill: i32) {
-        if self.klingons as i32 - to_kill < 0 {
-            self.klingons = 0;
-        } else {
-            self.klingons -= to_kill as u32
-        }
-    }
-
     pub fn get_starbases (&self) -> u32 {
         self.starbases
     }
@@ -281,7 +191,7 @@ impl Universe {
         println!("    1 2 3 4 5 6 7 8 9 10");
         println!("  ┏━━━━━━━━━━━━━━━━━━━━━┓");
 
-        if self.damage.srsensors == 0 { // Chart quadrant, but only if the short-range sensors are undamaged.
+        if self.damage.srsensors == 0.0 { // Chart quadrant, but only if the short-range sensors are undamaged.
             self.charted[self.qvert][self.qhoriz] = true;
         }
 
@@ -297,7 +207,7 @@ impl Universe {
             for _horiz in 0..10 {
                 printing = true;
 
-                if self.damage.srsensors > 0 {  // Limit the the player's vision to the Enterprise's immediate vicinity
+                if self.damage.srsensors > 0.0 {  // Limit the the player's vision to the Enterprise's immediate vicinity
                     if ![self.sloc-11, self.sloc-10, self.sloc-9, self.sloc-1, self.sloc, self.sloc+1, self.sloc+9, self.sloc+10, self.sloc+11].contains(&index) {
                         printing = false;
                     }
@@ -358,9 +268,9 @@ impl Universe {
         slow_prout("*AWHOOGAH*  *AWHOOGAH*");
         slow_prout("This is your captain speaking. We are abandoning ship. Please make your way to the nearest escape pod.");
 
-        if self.damage.shuttles == 0 {
+        if self.damage.shuttles == 0.0 {
             println!("You and your core crew escape in the Enterprise's shuttles, and eventually make your way to a mothballed ship - the Faerie Queen.");
-            if self.damage.transporter == 0 {
+            if self.damage.transporter == 0.0 {
                 println!("The Enterprise's remaining complement beam down to the nearest planet, where they are quickly captured.");
             } else {
                 println!("Unable to escape the ship, your remaining crewmembers are killed.");
@@ -374,7 +284,7 @@ impl Universe {
         //! quadrants, but you can get some basic
         //! information.
 
-        if self.damage.lrsensors > 0 {
+        if self.damage.lrsensors > 0.0 {
             println!("[*Mr. Spock*] Sir, the long range sensors are inoperable due to damage.");
             return;
         }
@@ -581,25 +491,6 @@ impl Universe {
         }
     }
 
-
-    /// The player is attempting to leave the galaxy.
-    ///
-    /// I can't let that happen, so the player gets two warnings.
-    ///
-    /// The third time they attempt this I will be forced to concede
-    /// the abominableness of their navigation, and so kill 'em.
-    #[allow(non_snake_case)]
-    pub fn NOPE (&mut self) {
-        if self.leave_attempts < 3 {
-            slow_prout("\nYOU HAVE ATTEMPTED TO CROSS THE NEGATIVE ENERGY BARRIER AT THE EDGE OF THE GALAXY.\nTHE THIRD TIME YOU TRY TO DO THIS YOU WILL BE DESTROYED.");
-            self.leave_attempts += 1;
-        } else {
-            self.alive = false;
-            self.score.lose_ship();
-            self.death_reason = DeathReason::GalaxyEdge;
-        }
-    }
-
     /// Set the universe's alert level.
     pub fn set_alert_level(&mut self, alert_level: Alert) {
         self.alert_level = alert_level;
@@ -614,6 +505,29 @@ impl Universe {
         self.time_remaining -= diff;
         self.stardate += diff;
     }
+
+
+    /// Kill an enemy at the specified location
+    pub fn kill_enemy (&mut self, qvert: &usize, qhoriz: &usize, loc: &usize) {
+        let enemy = match self.quadrants[*qvert][*qhoriz].get_entity(loc.clone()) {
+            Some(e) => e,
+            None => return,
+        };
+
+        self.quadrants[*qvert][*qhoriz].kill_entity(&*loc);
+
+        match enemy.0 {
+            EntityType::Klingon => {
+                self.score.kill_klingon();
+                self.klingons -= 1;
+                self.add_time(-1.5);
+            },
+            EntityType::Romulan => self.score.kill_romulan(),
+            EntityType::Tholian => self.score.kill_tholian(),
+            EntityType::Unknown => self.score.kill_unknown(),
+            _ => {}
+        }
+    }
 }
 
 
@@ -625,6 +539,7 @@ pub struct Quadrant {
     klingons: u8,
     starbases: u8,
     stars: u8,
+    romulans: u8,
 }
 
 impl Quadrant {
@@ -640,6 +555,7 @@ impl Quadrant {
             klingons: 0,
             starbases: 0,
             stars: 0,
+            romulans: 0,
         };
 
         return to_return
@@ -651,17 +567,17 @@ impl Quadrant {
         let mut randint = rand::thread_rng();
         let mut klingons = 0;
         let mut romulans = 0;
-        let mut stars = 0;
+        let stars = 0;
 
         // Difficulty level stuff
-        let mut max_klingons: i32 = randint.gen_range(0..match difficulty {
+        let max_klingons: i32 = randint.gen_range(0..match difficulty {
             1 => 4,
             2 => 5,
             3 => 7,
             4 => 10,
             _ => panic!("This code should be unreachable.")
         }) - 1; // TODO: Change this to account for difficulty
-        let mut max_romulans = randint.gen_range(-1..match difficulty {
+        let max_romulans = randint.gen_range(-1..match difficulty {
             1..=2 => 2,
             3..=4 => 4,
             _ => panic!("This code should be unreachable.")
@@ -716,6 +632,7 @@ impl Quadrant {
         }
 
         self.klingons = klingons as u8;
+        self.romulans = romulans as u8;
 
         return klingons as u32
     }
@@ -795,6 +712,20 @@ impl Quadrant {
     /// Get one of the quadrant's sectors
     pub fn sector(&self, location: &usize) -> u8 {
         self.sectors[*location].clone()
+    }
+
+    /// Determine whether the quadrant is part of the Romulan Neutral Zone
+    pub fn neutral_zone (&self) -> bool {
+        match self.romulans {
+            0 => false,
+            _ => {
+                if self.klingons == 0 {
+                    true
+                } else {
+                    false
+                }  
+            }
+        }
     }
 }
 
@@ -943,7 +874,7 @@ pub enum EntityType {
 
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-struct Health {
+pub struct Health {
     pub amount: i32,
     pub is_enemy: bool,
 }

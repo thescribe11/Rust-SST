@@ -23,6 +23,7 @@ mod constants;
 mod events;
 mod finish;
 mod movement;
+mod damage;
 
 use io::{input, freeze, thaw, CommandType, em_exit, get_yorn, slow_prout};
 use structs::Universe;
@@ -40,7 +41,7 @@ fn main() {
                 Ok(_) => {},
                 Err(error) => println!("Fatal error: {}", error)
             }},
-            None => {eprintln!("\nSayonara, sucker"); return}
+            None => return
         }
     } else {
         let raw_player_name = input("Player name (in format <first> <last>): ");
