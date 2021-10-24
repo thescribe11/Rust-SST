@@ -321,7 +321,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
     else if abbrev(&tokens[0], "mi", "mine") {
         return CommandType::Mine;
     }
-    else if abbrev(&tokens[0], "mo", "move") {
+    else if abbrev(&tokens[0], "m", "move") {
         match tokens.len() {
             1 => return CommandType::Move(None, None),
             2..=3 => {
@@ -401,7 +401,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
     }
     else if abbrev(&tokens[0], "pr", "probe") {
         let mut armed: bool = false;
-        let mut mode = match &tokens[1] {
+        let mode = match &tokens[1] {
             i if abbrev(i, "m", "manual") => ControlMode::Manual,
             i if abbrev(i, "a", "automatic") => ControlMode::Auto,
             i if abbrev(i, "ar", "armed") => {
@@ -564,8 +564,8 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
     }
     else if abbrev(&tokens[0], "w", "warp") {
         match tokens.len() {
-            1 => return CommandType::Warp(i32::MIN),
-            _ => return CommandType::Warp(match tokens[1].parse::<i32>() {
+            1 => return CommandType::Warp(f64::NEG_INFINITY),
+            _ => return CommandType::Warp(match tokens[1].parse::<f64>() {
                 Ok(i) => i,
                 Err(_) => {
                     println!("[*Helm*] Sir, that isn't a valid warp factor.");
@@ -618,7 +618,7 @@ pub enum CommandType {
     StarChart,
     Torpedo(Option<u8>, Vec<u8>),
     Transporter(u8),
-    Warp(i32)
+    Warp(f64)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

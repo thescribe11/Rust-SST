@@ -23,8 +23,6 @@ pub struct Universe {
 
     pub quadrants: [[Quadrant; 8]; 8],
     charted: [[bool; 8]; 8],
-    
-    pub player_name: Vec<String>,
     pub password: String,
 
     pub qvert: usize,
@@ -49,7 +47,7 @@ pub struct Universe {
 }
 
 impl Universe {
-    pub fn new (player_name: Vec<String>, password: String, difficulty: u8) -> Universe {
+    pub fn new (password: String, difficulty: u8) -> Universe {
         let mut randint = rand::thread_rng();
         let starbases: u32 = randint.gen_range(3..8);
 
@@ -75,8 +73,6 @@ impl Universe {
             [Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default()],
             [Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default()],],
             charted: [[false; 8]; 8],
-
-            player_name,
             password,
             
             qvert: randint.gen_range(0..8),
@@ -195,6 +191,19 @@ impl Universe {
             self.charted[self.qvert][self.qhoriz] = true;
         }
 
+        let mut viewable_coords: Vec<usize> = vec![self.sloc, self.sloc+10];
+        if self.damage.srsensors > 0.0 {  // Limit the the player's vision to the Enterprise's immediate vicinity
+            if self.sloc / 10 != 0 {
+                viewable_coords.push(self.sloc-10);
+                if self.sloc % 10 != 0 {
+                    viewable_coords.extend_from_slice(&[self.sloc-11, self.sloc-1, self.sloc+9]);
+                }
+                if self.sloc % 10 != 9 {
+                    viewable_coords.extend_from_slice(&[self.sloc-9, self.sloc+1, self.sloc+11]);
+                }
+            }
+        }
+
         let mut index = 0;
         for vert in 0..10 {
             print!("{}{}", vert+1, match vert {
@@ -207,11 +216,9 @@ impl Universe {
             for _horiz in 0..10 {
                 printing = true;
 
-                if self.damage.srsensors > 0.0 {  // Limit the the player's vision to the Enterprise's immediate vicinity
-                    if ![self.sloc-11, self.sloc-10, self.sloc-9, self.sloc-1, self.sloc, self.sloc+1, self.sloc+9, self.sloc+10, self.sloc+11].contains(&index) {
-                        printing = false;
-                    }
-                } 
+                if self.damage.srsensors > 0.0 && !viewable_coords.contains(&index) {
+                    printing = false;
+                }
 
                 if printing {
                     print!(" {}", match self.sector(&index) {
@@ -504,6 +511,7 @@ impl Universe {
     pub fn add_time (&mut self, diff: f64) {
         self.time_remaining -= diff;
         self.stardate += diff;
+        self.damage.repair(diff);
     }
 
 

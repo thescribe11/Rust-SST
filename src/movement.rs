@@ -9,15 +9,21 @@ impl crate::structs::Universe {
         //! Set it to 0.5 for impulse (sublight) drive.
 
         // Check to make sure the drive the player wants to move isn't damaged or unusable
-        if use_impulse && self.damage.impulse_drive > 0.0 {
+        if use_impulse && self.damage.impulse_drive > 3.5 {
             println!("[*Engineering*] Sir, the Impulse Drive is inoperable. We canna' use it.");
             return
-        } else if !use_impulse && self.damage.warp_drive > 0.0 {
-            println!("[*Engineering*] Sir, the warp drive is damaged! Using it right now would blow the ship to smithereens!");
+        } else if !use_impulse && self.damage.warp_drive > 2.0 {
+            println!("[*Engineering*] The warp coils are smashed! Using it right now would blow the ship to smithereens!");
             return
-        } else if !use_impulse && self.cloaked {
+        } else if !use_impulse && self.damage.warp_drive > 0.0 && self.warp_factor > 2.5 {
+            println!("[*Engineering*] The warp engines are damaged, sir; I can only give you warp 2.5.");
+            return
+        }
+         else if !use_impulse && self.cloaked {
             println!("[*Engineering*] We canna' use the warp drive while the claoking device is active!");
-            println!("[*Engineering*] ... that said, I could probably give you impulse.");
+            if self.damage.impulse_drive < 3.5 {
+                println!("[*Engineering*] ... that said, I could probably give you impulse.");
+            }
             return;
         }
 
@@ -186,13 +192,11 @@ impl crate::structs::Universe {
 
             let newloc = ((nsvert * 10.0) + nshoriz).round() as usize;
 
-            println!("Interquad: {}", &interquad);
-
             if !interquad {
                 match self.get_other_quadrant(&(nqvert as usize), &(nqhoriz as usize)).sector(&newloc) {
                     0 => continue,
                     1 | 2 => {  // Neutral or inanimate object
-                        println!("WARNING: Course blocked by object at sector {} {}", nsvert.round() as i32 + 1, nshoriz.round() as i32 + 1);
+                        println!("\nWARNING: Course blocked by object at sector {} {}", nsvert.round() as i32 + 1, nshoriz.round() as i32 + 1);
                         let stop_energy = 95.0 * self.warp_factor;
                         println!("Emergency stop requires {} units of energy.", stop_energy);
                         self.energy -= stop_energy;
@@ -210,7 +214,7 @@ impl crate::structs::Universe {
                         break;
                     },
                     5 => {  // Black hole
-                        slow_prout("***RED ALERT! RED ALERT!***");
+                        slow_prout("\n***RED ALERT! RED ALERT!***");
                         slow_prout("\nThe Enterprise is pulled into a black hole, crushing it like a tin can.");
                         self.die(DeathReason::EventHorizon);
                     },
@@ -240,7 +244,7 @@ impl crate::structs::Universe {
         self.quadrants[old_qvert][old_qhoriz].sectors[old_sloc] = 0;
 
         if self.get_quadrant().neutral_zone() && self.damage.radio == 0.0 {
-            println!("[*Lt. Uhura*] Captain, we're being hailed. I'll put it on audio.");
+            println!("\n[*Lt. Uhura*] Captain, we're being hailed. I'll put it on audio.");
             if self.ididit {
                 // The Romulans are royally pissed; skip the pleasantries.
                 println!("*click* DIE, TREACHEROUS HUMAN SCUM!!!");
@@ -287,6 +291,27 @@ impl crate::structs::Universe {
             self.score.lose_ship();
             self.death_reason = DeathReason::GalaxyEdge;
         }
+    }
+
+
+    pub fn change_warp (&mut self, mut new_factor: f64) {
+        if new_factor == f64::NEG_INFINITY {
+            new_factor = match input("New warp factor: ").parse::<f64>() {
+                Ok(f) => f,
+                Err(_) => {
+                    println!("[*Helm*] Say again, sir?");
+                    return
+                }
+            }
+        }
+
+        if (new_factor <= 0.0) | (new_factor > 10.0) {
+            println!("[*Engineering*] Do you think I'm God? I canna' change the laws of physics!");
+            println!("[*Mr. Spock*] Captain, we can only go up to warp 10.");
+            return
+        }
+
+        self.warp_factor = new_factor;
     }
 
 }

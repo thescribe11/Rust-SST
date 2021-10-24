@@ -44,7 +44,6 @@ fn main() {
             None => return
         }
     } else {
-        let raw_player_name = input("Player name (in format <first> <last>): ");
         let password = input("Password (used for self-destruct and save-file encryption: ");
         let mut difficulty: u8;
         loop {
@@ -59,7 +58,7 @@ fn main() {
             };
         }
 
-        match mainloop(Universe::new(raw_player_name.split(' ').into_iter().map(|e| String::from(e)).collect(), password, difficulty)) {
+        match mainloop(Universe::new(password, difficulty)) {
             Ok(_) => {},
             Err(e) => println!("Fatal error: {}", e)
         }
@@ -120,7 +119,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
             CommandType::StarChart => uni.starchart(),
             CommandType::Torpedo(num, deltas) => uni.torpedo(num, deltas),
             CommandType::Transporter(qubit) => {},
-            CommandType::Warp(factor) => {},
+            CommandType::Warp(factor) => uni.change_warp(factor),
         }
 
         if uni.klingons == 0 {
@@ -167,7 +166,7 @@ mod tests {
 
     #[test]
     fn test_scans () {
-        let mut uni = crate::Universe::new(String::from("James Kirk").split(' ').into_iter().map(|e| String::from(e)).collect(), String::from("asdf"), 1u8);
+        let mut uni = crate::Universe::new(String::from("asdf"), 1u8);
         uni.srscan();
         uni.lrscan();
         uni.starchart();
