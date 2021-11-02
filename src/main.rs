@@ -24,6 +24,9 @@ mod events;
 mod finish;
 mod movement;
 mod damage;
+mod scans;
+mod weapons;
+mod defense;
 
 use io::{input, freeze, thaw, CommandType, em_exit, get_yorn, slow_prout};
 use structs::Universe;
@@ -81,7 +84,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
             },
             CommandType::CallStarbase => {},
             CommandType::Capture => {},
-            CommandType::Cloak(yorn) => {},
+            CommandType::Cloak(yorn) => uni.cloak(yorn),
             CommandType::Commands => {},
             CommandType::Computer => {},
             CommandType::Damage => uni.damage.print_damage(),
@@ -110,7 +113,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
             },
             CommandType::Report => {},
             CommandType::Request(what) => {},
-            CommandType::Rest(duration) => {},
+            CommandType::Rest(duration) => uni.rest(duration),
             CommandType::Score => uni.score.print_score(),
             CommandType::SensorScan => {},
             CommandType::Shields(m, amount) => {},
@@ -124,8 +127,12 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
 
         if uni.klingons == 0 {
             println!("\nThe last Klingon battlecruiser has been destroyed, and the invasion thwarted. Good job!");
+            if uni.alive == false {
+                println!("Unfortunately, you got yourself killed along with it.");
+            }
             break;
         }
+
         match uni.death_reason {
             DeathReason::None => continue,
             i if true => {

@@ -1,4 +1,6 @@
-use crate::io::slow_prout;
+use rand::Rng;
+
+use crate::io::{get_args, get_yorn, slow_prout};
 use crate::finish::DeathReason;
 use crate::{input, io::abbrev};
 
@@ -115,6 +117,7 @@ impl crate::structs::Universe {
 
         let mut interquad  = false;  // Has the Enterprise gone to a different quadrant?
         let (mut nsvert, mut nshoriz, mut nqvert, mut nqhoriz) = ((self.sloc / 10) as f64, self.sloc as f64 % 10 as f64, self.qvert as i32, self.qhoriz as i32);
+        let mut interrupted = false;
 
         if use_impulse {
             self.energy -= 20.0;  // Initial warmup cost.
@@ -196,6 +199,7 @@ impl crate::structs::Universe {
                 match self.get_other_quadrant(&(nqvert as usize), &(nqhoriz as usize)).sector(&newloc) {
                     0 => continue,
                     1 | 2 => {  // Neutral or inanimate object
+                        interrupted = true;
                         println!("\nWARNING: Course blocked by object at sector {} {}", nsvert.round() as i32 + 1, nshoriz.round() as i32 + 1);
                         let stop_energy = 95.0 * self.warp_factor;
                         println!("Emergency stop requires {} units of energy.", stop_energy);
@@ -210,10 +214,12 @@ impl crate::structs::Universe {
                         break;
                     },
                     i if [3, 4, 6, 7].contains(&i) => {  // Enemy. Ramming speed!
+                        interrupted = true;
                         self.ram(i, &nqvert, &nqhoriz, &newloc);
                         break;
                     },
                     5 => {  // Black hole
+                        interrupted = true;
                         slow_prout("\n***RED ALERT! RED ALERT!***");
                         slow_prout("\nThe Enterprise is pulled into a black hole, crushing it like a tin can.");
                         self.die(DeathReason::EventHorizon);
@@ -225,10 +231,29 @@ impl crate::structs::Universe {
             }
         }
 
+        if self.warp_factor > 6.0 && !use_impulse && !interrupted{
+            if ((6.0-self.warp_factor).powf(2.0) * (distance * bigger) / (2.0/3.0)) > rand::random() {
+                // Whoopsies! The warp engine has been damaged.
+                self.damage.warp_drive += rand::random::<f64>() * distance / 10.0;
+            }
+
+            if !interrupted && ((6.0-self.warp_factor).powf(2.3) * (distance * bigger) / (2.0/3.0)) > rand::random() {
+                let amount: f64 = if rand::random::<f64>() > 0.5 {
+                    rand::thread_rng().gen_range(-10.0..1.0)
+                } else {
+                    rand::thread_rng().gen_range(1.0..10.0)
+                };
+
+                self.time_remaining += amount;
+                self.stardate += amount;
+            }
+        }
+
         let (old_sloc, old_qvert, old_qhoriz) = (self.sloc.clone(), self.qvert.clone(), self.qhoriz.clone());
         self.sloc = ((nsvert*10.0) + nshoriz).round() as usize;
         self.qvert = nqvert as usize;
         self.qhoriz = nqhoriz as usize;
+        self.hit_me = true;
 
         self.place_ship(old_qvert, old_qhoriz, old_sloc);
     }  // End move_it
@@ -244,7 +269,7 @@ impl crate::structs::Universe {
         self.quadrants[old_qvert][old_qhoriz].sectors[old_sloc] = 0;
 
         if self.get_quadrant().neutral_zone() && self.damage.radio == 0.0 {
-            println!("\n[*Lt. Uhura*] Captain, we're being hailed. I'll put it on audio.");
+            println!("\n[*Lt. Uhura*] Captain, a Romulan ship is hailing us. I'll put it on audio.");
             if self.ididit {
                 // The Romulans are royally pissed; skip the pleasantries.
                 println!("*click* DIE, TREACHEROUS HUMAN SCUM!!!");
@@ -294,6 +319,7 @@ impl crate::structs::Universe {
     }
 
 
+    /// Change the ship's warp factor
     pub fn change_warp (&mut self, mut new_factor: f64) {
         if new_factor == f64::NEG_INFINITY {
             new_factor = match input("New warp factor: ").parse::<f64>() {
@@ -309,9 +335,47 @@ impl crate::structs::Universe {
             println!("[*Engineering*] Do you think I'm God? I canna' change the laws of physics!");
             println!("[*Mr. Spock*] Captain, we can only go up to warp 10.");
             return
+        } else if new_factor > 6.0 {
+            // Speeds greater than warp 6 risk damage to the warp engines.
+            if !get_yorn("[*Mr. Spock*] Sir, we'd risk damaging the warp engines at that speed. Are you sure the risk is worth it?\n> ") {
+                return
+            }
         }
 
         self.warp_factor = new_factor;
+    }
+
+
+    /// Take a rest for a while.
+    pub fn rest (&mut self, mut duration: f64) {
+        if duration.is_nan() {
+            duration = match get_args::<f64>(input("\nHow much time would you like to skip? ")) {
+                Some (d) => match d.len() {
+                    1 => d[0],
+                    _ => {
+                        println!("Huh?");
+                        return
+                    }
+                },
+                None => {
+                    return;
+                }
+            };
+        }
+
+        if duration < 0.0 {
+            println!("[*Mr. Spock*] Captain, need I remind you that under normal conditions we always go forwards in time?");
+            return
+        } else if duration >= self.time_remaining {
+            if get_yorn("Captain, that would take more than our remaining time. Are you sure you wish to do this?\n> ") {
+                self.death_reason = DeathReason::TimeUp;
+            } else {
+                return;
+            }
+        }
+
+        self.add_time(duration);
+        self.hit_me = true;  // Time has elapsed, so the baddies get to attack.
     }
 
 }

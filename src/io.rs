@@ -36,6 +36,10 @@ pub fn get_yorn (prompt: &str) -> bool {
 pub fn abbrev (what: &String, least: &str, full: &str) -> bool {
     //! Check if `what` is an abbreviation of `full` and starts with `least`.
 
+    if what.ends_with("!") {
+        println!("Please don't shout; it hurts the crew's feelings.");
+    }
+
     return what.starts_with(&least) && full.contains(what)
 }
 
@@ -60,7 +64,7 @@ fn convert_vec <T> (i: Vec<String>) -> Option<Vec<T>>
             Ok(val) => to_return.push(val),
             Err(e) => {
                 if DEBUG {
-                    println!("{:#?}", e);
+                    println!("Error in convert_vec(): {:#?}", e);
                 }
                 return None
             }
@@ -71,7 +75,7 @@ fn convert_vec <T> (i: Vec<String>) -> Option<Vec<T>>
 }
 
 pub fn get_args <T> (i: String) -> Option<Vec<T>> where T: std::str::FromStr, <T as std::str::FromStr>::Err: std::fmt::Debug {
-    //! Wrapper around `convert_vec()`
+    //! Convenient wrapper around `convert_vec()`
 
     let raw_parts: Vec<String> = i.split(' ')    
         .collect::<Vec<&str>>()
@@ -452,8 +456,8 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
     }
     else if abbrev(&tokens[0], "r", "rest") {
         match tokens.len() {
-            1 => return CommandType::Rest(f32::NAN),
-            2 => return CommandType::Rest(match tokens[1].parse::<f32>(){
+            1 => return CommandType::Rest(f64::NAN),
+            2 => return CommandType::Rest(match tokens[1].parse::<f64>(){
                 Ok(i) => i,
                 Err(_) => {
                     println!("[*Mr. Spock*] Sir, that isn't a number.");
@@ -474,7 +478,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
     }
     else if abbrev(&tokens[0], "s", "shields") {
         match tokens.len() {
-            1 => return CommandType::Shields(String::new(), f32::NAN),
+            1 => return CommandType::Shields(String::new(), f64::NAN),
             _ => return CommandType::Shields(match tokens[1].clone() {
                 u if "up".contains(&u) => "u".to_string(),
                 d if "down".contains(&d) => "d".to_string(),
@@ -484,8 +488,8 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
                     return CommandType::Error
                 }}, // End arg 1
                 match tokens.len() {
-                    2 => f32::NAN,
-                    3 => match tokens[2].parse::<f32>() {
+                    2 => f64::NAN,
+                    3 => match tokens[2].parse::<f64>() {
                         Ok(n) => n,
                         Err(_) => {
                             println!("[*Shield Control*] Sir, I can't make out what you're saying.");
@@ -526,7 +530,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
                 to_fire = match tokens[1].parse::<u8>() {
                     Ok(i) => Some(i),
                     Err(_) => {
-                        println!("*Armory*] Sir?");
+                        println!("[*Armory*] Sir?");
                         return CommandType::Error;
                     }
                 };
@@ -609,10 +613,10 @@ pub enum CommandType {
     Quit,
     Report,
     Request(String),
-    Rest(f32),
+    Rest(f64),
     Score,
     SensorScan,
-    Shields(String, f32),
+    Shields(String, f64),
     Shuttle,
     SrScan,
     StarChart,

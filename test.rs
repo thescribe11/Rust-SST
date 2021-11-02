@@ -18,7 +18,7 @@ fn main() {
     println!("10/8: {}", 10/8);
     println!("45/8: {}", 45/8);
 
-    println!("Location: 49. Output: Sector {} {}", 49/8, 49%8);
+    println!("Location: 40. Output: Sector {} {}", 40/10, 40%10);
 
     println!("{}", 35 as usize / 10);
 
