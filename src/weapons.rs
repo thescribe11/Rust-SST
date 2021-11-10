@@ -212,7 +212,7 @@ impl crate::structs::Universe {
                 }
                 if random::<f64>() > 0.06 {
                     println!("[*Mr. Spock*] Captain, the experimental deathray has been rendered inoperable from the strain.");
-                    self.damage.deathray = 0.0;
+                    self.damage.deathray = 40.0;
                 }
             },
             11 | 12 => {
