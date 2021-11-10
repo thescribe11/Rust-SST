@@ -10,6 +10,7 @@ pub struct Damage {
     pub life_support: f64,
     pub warp_drive: f64,
     pub impulse_drive: f64,
+    pub shields: f64,
     
     // Weapons
     pub phasers: f64,
@@ -31,6 +32,7 @@ impl Damage {
     /// Instantiate a new Damage.
     pub fn new () -> Damage {
         Damage {
+            shields: 0.0,
             reactors: 0.0,
             life_support: 0.0,
             warp_drive: 0.0,
@@ -58,6 +60,7 @@ impl Damage {
 * Life support systems:  {}    
 * Warp drive:            {}
 * Impulse drive:         {}
+* Shields:               {}
 *
 * == Weapons ==
 * Phasers:               {}
@@ -75,7 +78,8 @@ impl Damage {
     self.reactors, 
     self.life_support, 
     self.warp_drive, 
-    self.impulse_drive, 
+    self.impulse_drive,
+    self.shields,
     self.phasers, 
     self.torpedoes, 
     self.tractors, 
@@ -108,6 +112,7 @@ impl Damage {
         self.lrsensors     += severity * 3.0 * rng.gen::<f64>();
         self.srsensors     += severity * 3.0 * rng.gen::<f64>();
         self.cloak         += severity * 3.0 * rng.gen::<f64>();
+        self.shields       += severity * 3.0 * rng.gen::<f64>();
     }
 
     /// Repair damage to the ship's systems.
@@ -115,7 +120,7 @@ impl Damage {
         self.reactors -= elapsed; self.life_support -= elapsed; self.warp_drive -= elapsed; self.impulse_drive -= elapsed;
         self.phasers-= elapsed; self.torpedoes -= elapsed; self.tractors -= elapsed; self.deathray -= elapsed;
         self.radio -= elapsed; self.transporter -= elapsed; self.shuttles -= elapsed; self.lrsensors -= elapsed; 
-        self.srsensors -= elapsed; self.cloak -= elapsed;
+        self.srsensors -= elapsed; self.cloak -= elapsed; self.shields -= elapsed;
 
         if self.reactors < 0.0 { self.reactors = 0.0 };
         if self.life_support < 0.0 { self.reactors = 0.0 };
@@ -131,5 +136,6 @@ impl Damage {
         if self.lrsensors < 0.0 { self.lrsensors = 0.0 };
         if self.srsensors < 0.0 { self.srsensors = 0.0 };
         if self.cloak < 0.0 { self.cloak = 0.0 };
+        if self.shields < 0.0 { self.shields = 0.0 };
     }
 }

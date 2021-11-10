@@ -99,17 +99,21 @@ pub fn input(prompt: &str) -> String {
 
 
 pub fn slow_prout <T> (prompt: T) where T: ToString {
-    let mut index = 0;
     for i in prompt.to_string().chars() {
         print!("{}", i);
-        index += 1;
-
-        if index >= COLUMNS {
-            print!("\n");
-            index = 0;
-        }
         stdout().flush().unwrap();
         thread::sleep(time::Duration::from_millis(20))
+    }
+    println!();
+}
+
+
+/// slow_prout but using a gap of 1 second
+pub fn extra_slow_prout <T> (prompt: T) where T: ToString {
+    for i in prompt.to_string().chars() {
+        print!("{}", i);
+        stdout().flush().unwrap();
+        thread::sleep(time::Duration::from_millis(1000))
     }
     println!();
 }

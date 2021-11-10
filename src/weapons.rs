@@ -1,6 +1,7 @@
-use rand::random;
+use rand::{random, thread_rng, Rng};
+use termion::color::{Fg, Red, Reset};
 
-use crate::{input, io::get_args, structs::EntityType};
+use crate::{finish::DeathReason, input, io::{extra_slow_prout, get_args, get_yorn, slow_prout}, structs::EntityType};
 
 impl crate::structs::Universe {
     pub fn torpedo (&mut self, num: Option<u8>, deltas: Vec<u8>) {
@@ -159,6 +160,99 @@ impl crate::structs::Universe {
                     }
                     None => print!(", ({}, {})", (torp_loc/10)+1, (torp_loc%10)+1)
                 }
+            }
+        }
+    }
+
+
+    pub fn deathray (&mut self) {
+        if self.damage.deathray > 0.0 {
+            println!("[*Tactical*] Sir, the deathray's, like, damaged. I can't, like, fire it in this condition.");
+            return
+        }
+        else if self.get_quadrant().search(EntityType::Klingon).len() == 0
+            && self.get_quadrant().search(EntityType::Romulan).len() == 0
+            && self.get_quadrant().search(EntityType::Tholian).len() == 0
+            && self.get_quadrant().search(EntityType::Unknown).len() == 0 {
+                println!("[*Mr. Spock*] Captain, there are no enemies in this quadrant.");
+                return
+        }
+        else if self.energy < 100.1 {
+            println!("[*Engineering*] Sir, we do na' have enough energy to fire that infernal thing.");
+            return
+        }
+
+        if !get_yorn("[*Mr. Spock*] The deathray is still experimental. If we use it there is a large chance that the Enterprise will be destroyed. Are you sure you want to proceed?\n>") {
+            return
+        }
+
+        println!("[*Mr. Spock*] As you wish.\n");
+        slow_prout("WHOOee ... WHOOee ... WHOOee ... WHOee");
+        println!("The crew scrambles in emergency preparation.");
+        println!("Spock and Scotty ready the deathray and prepare to channel all the ship's power to the device.");
+        
+        println!("[*Mr. Spock*] Preparations are complete, captain.");
+        println!("[*Cpt. Kirk*] Fire!");
+
+        slow_prout("WHIRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR");
+        match thread_rng().gen_range(0..16) {
+            0..=10 => {
+                slow_prout("[*Mr. Sulu*] Captain, it's working!");
+                for entity in self.get_quadrant().entities {
+                    match entity.0 {
+                        EntityType::Star => continue,
+                        EntityType::Starbase => continue,
+                        EntityType::Klingon 
+                            | EntityType::Romulan 
+                            | EntityType::Unknown 
+                            | EntityType::Tholian => self.kill_enemy(&self.qvert.clone(), &mut self.qhoriz.clone(), &entity.1),
+                        EntityType::Planet => continue,
+                        EntityType::BlackHole => continue,
+                    }
+                }
+                if random::<f64>() > 0.06 {
+                    println!("[*Mr. Spock*] Captain, the experimental deathray has been rendered inoperable from the strain.");
+                    self.damage.deathray = 0.0;
+                }
+            },
+            11 | 12 => {
+                print!("[*Mr. Sulu*]");
+                slow_prout("Captain, it's working!");
+                extra_slow_prout("    ");
+
+                print!("{}", Fg(Red));
+                slow_prout("***RED ALERT! RED ALERT!***");
+                slow_prout("***WARP CORE BREACH IMMINENT!***");
+                slow_prout("***RED ALERT! RED A*L********************************");
+                slow_prout("******************** BOOOOOOOOOM ********************");
+                print!("{}", Fg(Reset));
+                self.death_reason = DeathReason::MaximumEntropy;
+            },
+            13 => {
+                slow_prout("[*Mr. Sulu*] Captain, Yagsdsadfagag, brascscha!\n");
+                println!("[*Lt. Uhura*] Graeeek! Graeeek!\n");
+                println!("[*Mr. Spock*] Fascinating! It would seem that all the humans aboard have been transformed into strange mutations.");
+                println!("[*Mr. Spock*] Thankfully, Vulcans do not appear to be affected.\n");
+                println!("[*Cpt. Kirk*] Raauuch!");
+                self.death_reason = DeathReason::Transformation;
+            },
+            14 => {
+                slow_prout("[*Mr. Sulu*] Captain, it's working!\n");
+                extra_slow_prout("    ");
+                slow_prout("[*Mr. Spock*] Captain, I am getting some illogical sensor readings.");
+                slow_prout("[Cont.] There appears to be a wormhole in this quadrant, but that's impossible; the starcharts do not show any in this quadrant.");
+                slow_prout("[Cont.] Interesting... there appears to be a massive cube-shaped ship coming through it.");
+                slow_prout("[*Mr. Sulu*] Look at the size of that thing!        ");
+                slow_prout("[*Lt. Uhura*] Captain, it's hailing us.");
+                slow_prout("*click* We are the Borg. Lower your shields and surrender your ship. Your biological and technological distinctiveness to our own. Your culture will adapt to service us. Resistance is futile");
+                self.death_reason = DeathReason::Borg;
+            },
+            15 => {
+                slow_prout("[*Mr. Sulu*] Um... Captain, it appears to be making tribbles?");
+                self.death_reason = DeathReason::Tribble;
+            },
+            _ => {
+                panic!("This should be inaccessible!")
             }
         }
     }

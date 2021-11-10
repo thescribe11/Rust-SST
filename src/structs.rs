@@ -201,7 +201,7 @@ impl Universe {
         self.damage.repair(diff);
     }
 
-    
+
     /// Kill an enemy at the specified location
     pub fn kill_enemy (&mut self, qvert: &usize, qhoriz: &usize, loc: &usize) {
         let enemy = match self.quadrants[*qvert][*qhoriz].get_entity(loc.clone()) {
@@ -229,7 +229,7 @@ impl Universe {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Quadrant {
     pub sectors: Vec<u8>,  // [u8; 100] would be more efficient, but it doesn't play well with Serde.
-    entities: Vec<(EntityType, usize, Health, Alignment)>,
+    pub entities: Vec<(EntityType, usize, Health, Alignment)>,
     pub is_supernova: bool,
     klingons: u8,
     starbases: u8,
@@ -384,8 +384,6 @@ impl Quadrant {
     pub fn kill_entity (&mut self, location: &usize) {
         for e in 0..self.entities.len() {
             if &self.entities[e].1 == location {
-                
-
                 self.entities.remove(e);
                 break;
             }
