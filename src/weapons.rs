@@ -1,5 +1,6 @@
 use rand::{random, thread_rng, Rng};
 use termion::color::{Fg, Red, Reset};
+use crate::prout;
 
 use crate::{finish::DeathReason, input, io::{extra_slow_prout, get_args, get_yorn, slow_prout}, structs::EntityType};
 
@@ -15,7 +16,7 @@ impl crate::structs::Universe {
                 match x.parse::<u8>() {
                     Ok(i) => i,
                     Err(_) => {
-                        println!("Sir, I can't fire \"{}\" torpedoes.", x);
+                        prout!("Sir, I can't fire \"{}\" torpedoes.", x);
                         return;
                     }
                 }
@@ -24,15 +25,15 @@ impl crate::structs::Universe {
 
         // Check for invalid cases
         if to_fire > self.torpedoes {
-            println!("[*Armory*] What do you think we are, the Bank of Ferenginar?");
+            prout!("[*Armory*] What do you think we are, the Bank of Ferenginar?");
             return;
         } else if to_fire == 0 {
             return;
         } else if to_fire > self.torpedoes {
-            println!("[*Armory*] We can't fire that many sir; we only {} left.", &self.torpedoes);
+            prout!("[*Armory*] We can't fire that many sir; we only {} left.", &self.torpedoes);
             return
         } else if to_fire > 3 {
-            println!("[*Armory*] Sir, we can only fire three at a time; any more and we would melt the tubes!")
+            prout!("[*Armory*] Sir, we can only fire three at a time; any more and we would melt the tubes!")
         }
 
         let _d = match deltas.len() {  // Get a firing solution if there isn't already one.
@@ -49,7 +50,7 @@ impl crate::structs::Universe {
                             index += 1;
                         },
                         None => {
-                            println!("[*Armory*] Sir, that doesn't make sense.");
+                            prout!("[*Armory*] Sir, that doesn't make sense.");
                             return
                         }
                     }
@@ -83,7 +84,7 @@ impl crate::structs::Universe {
             loop {
                 torp_loc += delta;
                 if torp_loc < 0 || torp_loc > 99 {
-                    println!("\nTorpedo misses.");
+                    prout!("\nTorpedo misses.");
                     break;
                 }
 
@@ -92,10 +93,10 @@ impl crate::structs::Universe {
                     Some((t, loc, he, al)) => {
                         match t {
                             EntityType::BlackHole => {
-                                println!("\n Torpedo swallowed by black hole.");
+                                prout!("\n Torpedo swallowed by black hole.");
                             },
                             EntityType::Klingon => {  // Klingons are always destroyed by torpedoes, although I might want to change this later.
-                                println!("\n ***Klingon at sector ({}, {}) destroyed.", (torp_loc/10)+1, (torp_loc%10)+1);
+                                prout!("\n ***Klingon at sector ({}, {}) destroyed.", (torp_loc/10)+1, (torp_loc%10)+1);
                                 self.quadrants[self.qvert][self.qhoriz].kill_entity(&(torp_loc as usize));
                                 self.score.kill_klingon();
                                 self.klingons -=1;
@@ -103,7 +104,7 @@ impl crate::structs::Universe {
                             EntityType::Romulan => {
                                 match random::<u8>() {
                                     0..=200 => {  // Romulan dies
-                                        println!("\n ***Romulan at sector ({}, {}) destroyed.", (torp_loc/10)+1, (torp_loc%10)+1);
+                                        prout!("\n ***Romulan at sector ({}, {}) destroyed.", (torp_loc/10)+1, (torp_loc%10)+1);
                                         self.quadrants[self.qvert][self.qhoriz].kill_entity(&(torp_loc as usize));
                                         self.score.kill_romulan();
                                     },
@@ -114,7 +115,7 @@ impl crate::structs::Universe {
                                 }
                             },
                             EntityType::Star => {
-                                println!("\n ***Torpedo impacts star at sector ({}, {}), causing it to go nova.", (torp_loc/10)+1, (torp_loc%10)+1);
+                                prout!("\n ***Torpedo impacts star at sector ({}, {}), causing it to go nova.", (torp_loc/10)+1, (torp_loc%10)+1);
                                 for i in &[torp_loc-11, torp_loc-10, torp_loc-9, torp_loc-1, torp_loc, torp_loc+1, torp_loc+9, torp_loc+10, torp_loc+11] {
                                     if *i > -1 && *i < 100 {
                                         match self.get_quadrant().sectors[*i as usize] {
@@ -128,7 +129,7 @@ impl crate::structs::Universe {
                                             7 => self.score.kill_unknown(),
                                             8 => {},
                                             _ => {
-                                                println!("{}", self.get_quadrant().sectors[*i as usize]);
+                                                prout!("{}", self.get_quadrant().sectors[*i as usize]);
                                                 panic!("Somehow a corrupted value has gotten into the sector map.")
                                             }
                                         }
@@ -137,22 +138,22 @@ impl crate::structs::Universe {
                                 }
                             }
                             EntityType::Starbase => {
-                                println!("\n ***Friendly starbase at sector ({}, {}) destroyed. You murderer.", (torp_loc/10)+1, (torp_loc%10)+1);
+                                prout!("\n ***Friendly starbase at sector ({}, {}) destroyed. You murderer.", (torp_loc/10)+1, (torp_loc%10)+1);
                                 self.score.kill_starbase();
                                 self.quadrants[self.qvert][self.qhoriz].kill_entity(&(torp_loc as usize));
                             },
                             EntityType::Unknown => {
-                                println!("\n *** ??? at sector ({}, {}) destroyed.", (torp_loc/10)+1, (torp_loc%10)+1);
+                                prout!("\n *** ??? at sector ({}, {}) destroyed.", (torp_loc/10)+1, (torp_loc%10)+1);
                                 self.score.kill_unknown();
                                 self.quadrants[self.qvert][self.qhoriz].kill_entity(&(torp_loc as usize));
                             },
                             EntityType::Tholian => {
-                                println!("\n ***Tholian at sector ({}, {}) destroyed. Good shot!", (torp_loc/10)+1, (torp_loc%10)+1);
+                                prout!("\n ***Tholian at sector ({}, {}) destroyed. Good shot!", (torp_loc/10)+1, (torp_loc%10)+1);
                                 self.score.kill_tholian();
                                 self.quadrants[self.qvert][self.qhoriz].kill_entity(&(torp_loc as usize));
                             },
                             EntityType::Planet => {
-                                println!("\n ***Planet at sector ({}, {}) destroyed. You murderer.", (torp_loc/10)+1, (torp_loc%10)+1);
+                                prout!("\n ***Planet at sector ({}, {}) destroyed. You murderer.", (torp_loc/10)+1, (torp_loc%10)+1);
                             },
                         }
                         // The torpedo has, of course, blown up.
@@ -167,32 +168,32 @@ impl crate::structs::Universe {
 
     pub fn deathray (&mut self) {
         if self.damage.deathray > 0.0 {
-            println!("[*Tactical*] Sir, the deathray's, like, damaged. I can't, like, fire it in this condition.");
+            prout!("[*Tactical*] Sir, the deathray's, like, damaged. I can't, like, fire it in this condition.");
             return
         }
         else if self.get_quadrant().search(EntityType::Klingon).len() == 0
             && self.get_quadrant().search(EntityType::Romulan).len() == 0
             && self.get_quadrant().search(EntityType::Tholian).len() == 0
             && self.get_quadrant().search(EntityType::Unknown).len() == 0 {
-                println!("[*Mr. Spock*] Captain, there are no enemies in this quadrant.");
+                prout!("[*Mr. Spock*] Captain, there are no enemies in this quadrant.");
                 return
         }
         else if self.energy < 100.1 {
-            println!("[*Engineering*] Sir, we do na' have enough energy to fire that infernal thing.");
+            prout!("[*Engineering*] Sir, we do na' have enough energy to fire that infernal thing.");
             return
         }
 
-        if !get_yorn("[*Mr. Spock*] The deathray is still experimental. If we use it there is a large chance that the Enterprise will be destroyed. Are you sure you want to proceed?\n>") {
+        if !get_yorn("[*Mr. Spock*] The deathray is still experimental. If we use it there is a large chance that the Enterprise will be destroyed. Are you sure you want to proceed?\n> ") {
             return
         }
 
-        println!("[*Mr. Spock*] As you wish.\n");
-        slow_prout("WHOOee ... WHOOee ... WHOOee ... WHOee");
-        println!("The crew scrambles in emergency preparation.");
-        println!("Spock and Scotty ready the deathray and prepare to channel all the ship's power to the device.");
+        prout!("[*Mr. Spock*] As you wish.\n");
+        slow_prout("WHOOee ... WHOOee ... WHOOee ... WHOOee");
+        prout!("The crew scrambles in emergency preparation.");
+        prout!("Spock and Scotty ready the deathray and prepare to channel all the ship's power to the device.");
         
-        println!("[*Mr. Spock*] Preparations are complete, captain.");
-        println!("[*Cpt. Kirk*] Fire!");
+        prout!("[*Mr. Spock*] Preparations are complete, captain.");
+        prout!("[*Cpt. Kirk*] Fire!");
 
         slow_prout("WHIRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR");
         match thread_rng().gen_range(0..16) {
@@ -211,7 +212,7 @@ impl crate::structs::Universe {
                     }
                 }
                 if random::<f64>() > 0.06 {
-                    println!("[*Mr. Spock*] Captain, the experimental deathray has been rendered inoperable from the strain.");
+                    prout!("[*Mr. Spock*] Captain, the experimental deathray has been rendered inoperable.");
                     self.damage.deathray = 40.0;
                 }
             },
@@ -224,27 +225,30 @@ impl crate::structs::Universe {
                 slow_prout("***RED ALERT! RED ALERT!***");
                 slow_prout("***WARP CORE BREACH IMMINENT!***");
                 slow_prout("***RED ALERT! RED A*L********************************");
-                slow_prout("******************** BOOOOOOOOOM ********************");
+                prout!("*********************** BOOOM ***********************");
+                prout!("*****************************************************");
                 print!("{}", Fg(Reset));
                 self.death_reason = DeathReason::MaximumEntropy;
             },
             13 => {
                 slow_prout("[*Mr. Sulu*] Captain, Yagsdsadfagag, brascscha!\n");
-                println!("[*Lt. Uhura*] Graeeek! Graeeek!\n");
-                println!("[*Mr. Spock*] Fascinating! It would seem that all the humans aboard have been transformed into strange mutations.");
-                println!("[*Mr. Spock*] Thankfully, Vulcans do not appear to be affected.\n");
-                println!("[*Cpt. Kirk*] Raauuch!");
+                prout!("[*Lt. Uhura*] Graeeek! Graeeek!\n");
+                prout!("[*Mr. Spock*] Fascinating! It would seem that all the humans aboard have been transformed into strange mutations.");
+                prout!("[*Mr. Spock*] Thankfully, Vulcans do not appear to be affected.\n");
+                prout!("[*Cpt. Kirk*] Raauuch!");
                 self.death_reason = DeathReason::Transformation;
             },
             14 => {
-                slow_prout("[*Mr. Sulu*] Captain, it's working!\n");
-                extra_slow_prout("    ");
+                slow_prout("[*Mr. Sulu*] Captain, it's working!");
+                extra_slow_prout("    \n");
                 slow_prout("[*Mr. Spock*] Captain, I am getting some illogical sensor readings.");
-                slow_prout("[Cont.] There appears to be a wormhole in this quadrant, but that's impossible; the starcharts do not show any in this quadrant.");
+                slow_prout("[Cont.] There appears to be a wormhole nearby, but that's impossible; the starcharts do not show any in this area.");
                 slow_prout("[Cont.] Interesting... there appears to be a massive cube-shaped ship coming through it.");
-                slow_prout("[*Mr. Sulu*] Look at the size of that thing!        ");
+                slow_prout("[*Mr. Sulu*] Look at the size of that thing!");
+
+                extra_slow_prout("      ");
                 slow_prout("[*Lt. Uhura*] Captain, it's hailing us.");
-                slow_prout("*click* We are the Borg. Lower your shields and surrender your ship. Your biological and technological distinctiveness to our own. Your culture will adapt to service us. Resistance is futile");
+                slow_prout("*click* We are the Borg. Lower your shields and surrender your ship. Your biological and technological distinctiveness will be added to our own. Your culture will adapt to service us. Resistance is futile");
                 self.death_reason = DeathReason::Borg;
             },
             15 => {

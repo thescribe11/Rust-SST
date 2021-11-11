@@ -1,4 +1,4 @@
-use crate::constants::{DEBUG, COLUMNS};
+use crate::constants::DEBUG;
 use crate::structs::{Universe};
 
 use std::fs::File;
@@ -8,6 +8,47 @@ use std::fmt::Debug;
 
 use clearscreen::clear;
 use serde_json::{to_string, from_str};
+
+
+/// A better version of println! which wraps lines by whole words 
+/// instead of characters.
+#[macro_export]
+#[allow_internal_unstable(format_args_nl)]
+macro_rules! prout {
+    () => (println!());
+    ($($arg:tt)*) => ({
+        let raw: String = format_args_nl!($($arg)*).to_string();
+        let raw_parts: Vec<String> = raw.split(' ')    
+        .collect::<Vec<&str>>()
+        .into_iter()
+        .map(|element| String::from(element))
+        .collect();
+
+        let mut index: usize = 0;
+        let width = match termion::terminal_size() {
+            Ok(x) => x.0,
+            Err(_) => 80,  // If the terminal width is inaccessible, assume IBM standard 80 columns
+        } as usize;
+
+        for i in raw_parts.clone() {
+            if index + i.len() > width {
+                println!();
+            }
+            for j in i.chars() {
+                print!("{}", j);
+                if j == '\n' {
+                    index = 0;
+                }
+            }
+
+            if raw_parts.iter().position(|r| r==&i).unwrap() < raw_parts.len()-1 {
+                print!(" ");
+            }
+        }
+    });
+}
+
+
 
 
 pub fn is_numeric (s: &String) -> bool {
@@ -37,7 +78,7 @@ pub fn abbrev (what: &String, least: &str, full: &str) -> bool {
     //! Check if `what` is an abbreviation of `full` and starts with `least`.
 
     if what.ends_with("!") {
-        println!("Please don't shout; it hurts the crew's feelings.");
+        prout!("Please don't shout; it hurts the crew's feelings.");
     }
 
     return what.starts_with(&least) && full.contains(what)
@@ -48,7 +89,7 @@ pub fn strip<U: std::clone::Clone + std::fmt::Debug> (what: &mut Vec<U>, start: 
     //! Strip unnecessary elements from a Vec
 
     if (what.len() < end) || start > end {  // Ensure that the requested elements can be removed
-        println!("Oops! You're trying to strip elements that aren't there.");
+        prout!("Oops! You're trying to strip elements that aren't there.");
         return None
     }
     Some(what[start..end].to_vec())
@@ -64,7 +105,7 @@ fn convert_vec <T> (i: Vec<String>) -> Option<Vec<T>>
             Ok(val) => to_return.push(val),
             Err(e) => {
                 if DEBUG {
-                    println!("Error in convert_vec(): {:#?}", e);
+                    prout!("Error in convert_vec(): {:#?}", e);
                 }
                 return None
             }
@@ -96,6 +137,7 @@ pub fn input(prompt: &str) -> String {
     stdin().read_line(input).unwrap();
     return input.trim_end().to_string();
 }
+
 
 
 pub fn slow_prout <T> (prompt: T) where T: ToString {
@@ -133,7 +175,7 @@ pub fn thaw () -> Option<Universe>{
         let temp = File::open(input("Save file: "));
         match temp {
             Ok(p) => {save_file = p; break;},
-            Err(_) => {println!("Unable to find save file.\n"); continue;}
+            Err(_) => {prout!("Unable to find save file.\n"); continue;}
         };
     }
 
@@ -157,7 +199,7 @@ pub fn thaw () -> Option<Universe>{
     
     uni = match from_str(raw_parts[1].as_str()) {
         Ok(data) => {data},
-        Err(_) => {println!("\nERROR: The save file is corrupted."); return None}
+        Err(_) => {prout!("\nERROR: The save file is corrupted."); return None}
     };
     
     return Some(uni)
@@ -167,15 +209,15 @@ pub fn freeze (uni: &Universe) {
     let mut file = match File::create(input("Filename: ")) {
         Ok(f) => f,
         Err(e) => {
-            if DEBUG { println!("{}", e) }
-            println!("Alas, it is impossible to create a file in that location.");
+            if DEBUG { prout!("{}", e) }
+            prout!("Alas, it is impossible to create a file in that location.");
             return;
         }
     };
 
     match file.write_all((uni.password.clone() + "\0" + to_string(uni).unwrap().as_str()).as_bytes()) {
         Ok(_) => {},
-        Err(_) => println!("I'm sorry, but that file cannot be written to.")
+        Err(_) => prout!("I'm sorry, but that file cannot be written to.")
     }
         
 }
@@ -189,15 +231,15 @@ pub fn em_exit (uni: Universe) {
     let mut file = match File::create("emsave.sst") {
         Ok(f) => f,
         Err(e) => {
-            if DEBUG { println!("{}", e) }
-            println!("ERROR: Unable to save.");
+            if DEBUG { prout!("{}", e) }
+            prout!("ERROR: Unable to save.");
             return;
         }
     };
 
     match file.write_all((uni.password.clone() + "\0" + to_string(&uni).unwrap().as_str()).as_bytes()) {
         Ok(_) => {},
-        Err(_) => println!("ERROR: Unable to save.")
+        Err(_) => prout!("ERROR: Unable to save.")
     }
 
     clear().unwrap();
@@ -226,7 +268,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
             1 => return CommandType::Cloak(String::from("")),
             2 => return CommandType::Cloak(tokens[1].clone()),
             _ => {
-                println!("[*Engineering*] Uh... sir, have you been taking your pills lately?");
+                prout!("[*Engineering*] Uh... sir, have you been taking your pills lately?");
                 return CommandType::Error
             }
         }
@@ -244,7 +286,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
         match tokens[0].as_str() {
             "deathray" => return CommandType::DeathRay,
             _ => {
-                println!("Due to its awesome power (and tendency to explode in your face), the \"deathray\" command cannot be abbreviated.");
+                prout!("Due to its awesome power (and tendency to explode in your face), the \"deathray\" command cannot be abbreviated.");
                 return CommandType::Error
             }
         }
@@ -253,7 +295,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
         match tokens[0].as_str() {
             "destruct" => return CommandType::Destruct,
             _ => {
-                println!("[*COMPUTER*] I'm sorry, but to prevent accidents Starfleet doesn't allow this command to be abbreviated.");
+                prout!("[*COMPUTER*] I'm sorry, but to prevent accidents Starfleet doesn't allow this command to be abbreviated.");
             }
         }
     }
@@ -268,7 +310,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
             1 => return CommandType::Freeze(String::new()),
             2 => return CommandType::Freeze(tokens[1].clone()),
             _ => {
-                println!("Huh?");
+                prout!("Huh?");
                 return CommandType::Error
             }
         }
@@ -278,7 +320,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
             1 => return CommandType::Help(String::new()),
             2 => return CommandType::Help(tokens[1].clone()),
             _ => {
-                println!("Hold yer horses! I can only give you help on one thing at a time.");
+                prout!("Hold yer horses! I can only give you help on one thing at a time.");
                 return CommandType::Error
             }
         }
@@ -290,7 +332,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
                 let angle = match tokens[1].parse::<f64>() {
                     Ok(a) => a,
                     Err(_) => {
-                        println!(r#"[*Helm*] Sir, "second to the right, turn left after the sun and then straight on till morning" isn't a valid direction."#);
+                        prout!(r#"[*Helm*] Sir, "second to the right, turn left after the sun and then straight on till morning" isn't a valid direction."#);
                         return CommandType::Error
                     }
                 };
@@ -300,7 +342,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
                     3 => Some(match tokens[2].parse::<f64>() {
                         Ok(v) => v,
                         Err(_) => {
-                            println!("[*Helm*] That isn't a distance.");
+                            prout!("[*Helm*] That isn't a distance.");
                             return CommandType::Error
                         }
                     }),
@@ -308,7 +350,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
                 })
             },
             _ => {
-                println!("[*Helm*] Sir, please say that again more slowly.");
+                prout!("[*Helm*] Sir, please say that again more slowly.");
                 return CommandType::Error
             }
         }
@@ -318,7 +360,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
             1 => {input("Enter save file name > ")},
             2 => tokens[1].clone(),
             _ => {
-                println!("Invalid arguments.");
+                prout!("Invalid arguments.");
                 return CommandType::Error
             }
         })
@@ -336,7 +378,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
                 let angle = match tokens[1].parse::<f64>() {
                     Ok(a) => a,
                     Err(_) => {
-                        println!(r#"[*Helm*] Sir, "second to the right, turn left after the sun and then straight on till morning" isn't a valid direction."#);
+                        prout!(r#"[*Helm*] Sir, "second to the right, turn left after the sun and then straight on till morning" isn't a valid direction."#);
                         return CommandType::Error
                     }
                 };
@@ -347,7 +389,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
                     3 => Some(match tokens[2].parse::<f64>() {
                         Ok(v) => v,
                         Err(_) => {
-                            println!("[*Helm*] That isn't a distance.");
+                            prout!("[*Helm*] That isn't a distance.");
                             return CommandType::Error
                         }
                     }),
@@ -355,7 +397,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
                 })
             },
             _ => {
-                println!("[*Helm*] Sir, can you please say that again more slowly?");
+                prout!("[*Helm*] Sir, can you please say that again more slowly?");
                 return CommandType::Error
             }
         }
@@ -377,7 +419,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
                 ControlMode::Undefined
             },
             _ => {
-                println!("[*Fire Control*] Pull the other one; it's got bells on.");
+                prout!("[*Fire Control*] Pull the other one; it's got bells on.");
                 return CommandType::Error
             }
         };
@@ -387,7 +429,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
             total_energy = match tokens[1].parse::<f32>() {
                 Ok(i) => i,
                 Err(_) => {
-                    println!("[*Fire Control*] Sir, I can't fire non-numeric amounts of energy.");
+                    prout!("[*Fire Control*] Sir, I can't fire non-numeric amounts of energy.");
                     return CommandType::Error
                 }
             };
@@ -397,7 +439,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
             let tokens: Vec<f32> = match convert_vec(tokens) {
                 Some(v) => v,
                 None => {
-                    println!("[*Fire Control*] Sir, that firing solution is invalid.");
+                    prout!("[*Fire Control*] Sir, that firing solution is invalid.");
                     return CommandType::Error
                 }
             };
@@ -419,13 +461,13 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
                     i if abbrev(i, "m", "manual") => ControlMode::Manual,
                     i if abbrev(i, "a", "automatic") => ControlMode::Auto,
                     _ => {
-                        println!("[*Shuttle Bay*] Huh?");
+                        prout!("[*Shuttle Bay*] Huh?");
                         return CommandType::Error
                     }
                 }
             },
             _ => {
-                println!("[*Shuttle Bay*] Huh?");
+                prout!("[*Shuttle Bay*] Huh?");
                 return CommandType::Error
             }
         };
@@ -435,7 +477,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
             }) {
                 Some(t) => t,
                 None => {
-                    println!("[*Shuttle Bay*] Those aren't valid destination coordinates.");
+                    prout!("[*Shuttle Bay*] Those aren't valid destination coordinates.");
                     return CommandType::Error
                 }
             };
@@ -464,12 +506,12 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
             2 => return CommandType::Rest(match tokens[1].parse::<f64>(){
                 Ok(i) => i,
                 Err(_) => {
-                    println!("[*Mr. Spock*] Sir, that isn't a number.");
+                    prout!("[*Mr. Spock*] Sir, that isn't a number.");
                     return CommandType::Error
                 }
             }),
             _ => {
-                println!("[*Mr. Spock*] Sir, that is illogical.");
+                prout!("[*Mr. Spock*] Sir, that is illogical.");
                 return CommandType::Error;
             }
         }
@@ -486,9 +528,9 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
             _ => return CommandType::Shields(match tokens[1].clone() {
                 u if "up".contains(&u) => "u".to_string(),
                 d if "down".contains(&d) => "d".to_string(),
-                t if "transfer".contains(&t) => "t".to_string(),
+                t if "set".contains(&t) => "s".to_string(),
                 _ => {
-                    println!("[*Shield Control*] Say again, sir?");
+                    prout!("[*Tactical*] Say again, sir?");
                     return CommandType::Error
                 }}, // End arg 1
                 match tokens.len() {
@@ -496,12 +538,12 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
                     3 => match tokens[2].parse::<f64>() {
                         Ok(n) => n,
                         Err(_) => {
-                            println!("[*Shield Control*] Sir, I can't make out what you're saying.");
+                            prout!("[*Tactical*] Sir, I, like, can't make out what you're saying.");
                             return CommandType::Error
                         }
                     },
                     _ => {
-                        println!("[*Shield Control*] What was that, sir?");
+                        prout!("[*Tactical*] What was that, sir?");
                         return CommandType::Error                        
                     }
                 } // End arg 2
@@ -526,7 +568,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
             2 => return CommandType::Torpedo(match tokens[1].parse::<u8>() {
                     Ok(i) => Some(i),
                     Err(_) => {
-                        println!("[*Armory*] Huh?");
+                        prout!("[*Armory*] Huh?");
                         return CommandType::Error
                     }
                 }, Vec::new()),
@@ -534,7 +576,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
                 to_fire = match tokens[1].parse::<u8>() {
                     Ok(i) => Some(i),
                     Err(_) => {
-                        println!("[*Armory*] Sir?");
+                        prout!("[*Armory*] Sir?");
                         return CommandType::Error;
                     }
                 };
@@ -545,7 +587,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
                 directions = match convert_vec(tokens) {
                     Some(t) => t,
                     None => {
-                        println!("[*Armory*] Sir, that firing solution makes no sense!");
+                        prout!("[*Armory*] Sir, that firing solution makes no sense!");
                         return  CommandType::Error
                     }
                 }
@@ -560,12 +602,12 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
                 y if abbrev(y, "y", "yes") => 1,
                 n if abbrev(n, "n", "no") => 0,
                 _ => {
-                    println!("[*Transporter Room*] I didn't quite catch that.");
+                    prout!("[*Transporter Room*] I didn't quite catch that.");
                     return CommandType::Error
                 }
             },
             _ => {
-                println!("[*Transporter Room*] Um... would you mind saying that again sir?");
+                prout!("[*Transporter Room*] Um... would you mind saying that again sir?");
                 return CommandType::Error
             }
         })
@@ -576,7 +618,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
             _ => return CommandType::Warp(match tokens[1].parse::<f64>() {
                 Ok(i) => i,
                 Err(_) => {
-                    println!("[*Helm*] Sir, that isn't a valid warp factor.");
+                    prout!("[*Helm*] Sir, that isn't a valid warp factor.");
                     return CommandType::Error
                 }
             })
@@ -584,7 +626,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
     }
 
     // At this point we can assume that it isn't a valid command
-    println!("[*Mr. Spock*] Captain, that is not a valid command.");
+    prout!("[*Mr. Spock*] Captain, that is not a valid command.");
     return CommandType::Error
 }
 

@@ -1,4 +1,5 @@
 use crate::io::{abbrev, get_yorn, input};
+use crate::prout;
 use crate::structs::EntityType;
 use crate::constants::ALGERON;
 
@@ -6,7 +7,7 @@ impl crate::structs::Universe {
     /// Operate the cloaking device.
     pub fn cloak (&mut self, yorn: String) {
         if self.damage.cloak > 0.0 {
-            println!("[*Engineering*] Sir, we canna' control the cloaking device until this damage is repaired.");
+            prout!("[*Engineering*] Sir, we canna' control the cloaking device until this damage is repaired.");
             return
         }
 
@@ -19,7 +20,7 @@ impl crate::structs::Universe {
 
             self.cloaked = true;
             if self.get_quadrant().search(EntityType::Romulan).len() > 0 {  // Check for Romulans
-                println!("\nA Romulan ship has observed you using your cloaking device. From now on, all Romulan ships will be hostile towards you.");
+                prout!("\nA Romulan ship has observed you using your cloaking device. From now on, all Romulan ships will be hostile towards you.");
                 self.ididit = true; // The Romulans are royally pissed.
             }
         } else {
@@ -31,7 +32,7 @@ impl crate::structs::Universe {
     /// Control the deflector shields
     pub fn shields (&mut self, raw_mode: String, amount: f64) {
         if self.damage.shields > 0.0 {
-            println!("[*Tactical*] Sir, the shield control circuit thingies are broke; I can't do anything till they're repaired.");
+            prout!("[*Tactical*] Sir, the shield control circuit thingies are broke; I can't do anything till they're repaired.");
             return;
         }
 
@@ -46,16 +47,29 @@ impl crate::structs::Universe {
             self.shield_status = false;
         }
         else if abbrev(&mode, "s", "set") {
+            let amount = match amount {
+                f64::NAN => {
+                    match input("[*Tactical*] What do you wanna have me set 'em to?\n>").parse::<f64>() {
+                        Ok(x) => x,
+                        Err(_) => {
+                            println!("[*Tactical*] I, like, can't understand what ya sayin'.");
+                            return;
+                        }
+                    }
+                },
+                _ => amount
+            };
+
             if amount < 0.0 {
-                println!("[*Tactical*] I can't take more energy than is actually in the capacitors.");
+                prout!("[*Tactical*] I can't return more energy than actually's in the capacitors.");
                 return;
             }
             else if amount > 600.0 {
-                println!("[*Tactical*] The shields can't hold more than 600 energy.");
+                prout!("[*Tactical*] The shields, like, can't hold more than 600 energy.");
                 return;
             } 
             else if self.energy - (amount - self.shields) <= 0.0 {
-                println!("[*Engineering*] Captain, we don't have that much energy available.");
+                prout!("[*Engineering*] Captain, we don't have that much energy available.");
                 return;
             }
             else {
@@ -65,7 +79,7 @@ impl crate::structs::Universe {
         } else if mode == "" {
             return;
         } else {
-            println!("[*Tactical*] I didn't quite catch that.");
+            prout!("[*Tactical*] Come again?");
         }
     }
 }

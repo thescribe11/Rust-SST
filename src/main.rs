@@ -17,6 +17,8 @@ finish.rs - various ending conditions
 deathray.rs - logic for the experimental deathray
 */
 
+#![feature(allow_internal_unstable)]
+
 mod structs;
 mod io;
 mod constants;
@@ -36,7 +38,7 @@ use crate::constants::DEBUG;
 
 
 fn main() {
-    println!("\n=======================
+    prout!("\n=======================
 --- SUPER STAR TREK ---
 =======================\n");
     
@@ -44,7 +46,7 @@ fn main() {
         match thaw() {
             Some(u) => {match mainloop(u) {
                 Ok(_) => {},
-                Err(error) => println!("Fatal error: {}", error)
+                Err(error) => prout!("Fatal error: {}", error)
             }},
             None => return
         }
@@ -53,7 +55,7 @@ fn main() {
         let mut difficulty: u8;
         loop {
             match input("Difficulty (1=easy, 2=normal, 3=hard, 4=emeritus): ").as_str().parse::<u8>() {
-                Err(_) => {println!("Invalid difficulty."); continue},
+                Err(_) => {prout!("Invalid difficulty."); continue},
                 Ok(res) => {
                     if 0 < res && res < 5 {
                         difficulty = res;
@@ -65,11 +67,11 @@ fn main() {
 
         match mainloop(Universe::new(password, difficulty)) {
             Ok(_) => {},
-            Err(e) => println!("Fatal error: {}", e)
+            Err(e) => prout!("Fatal error: {}", e)
         }
     }
 
-    println!();
+    prout!();
 }
 
 
@@ -80,7 +82,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
         match io::parse_args(input("\nCommad > ")) {
             CommandType::Abandon => {
                 if get_yorn("Are you sure you want to abandon ship? ") {
-                    println!("");
+                    prout!("");
                     
                     // TODO: Add the rest of the logic
                     uni.abandon_ship();
@@ -112,7 +114,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
             CommandType::PlanetReport => {},
             CommandType::Probe(yorn, mode, deltas) => {},
             CommandType::Quit => {
-                println!("\nGoodbye.\n");
+                prout!("\nGoodbye.\n");
                 return Ok(())
             },
             CommandType::Report => {},
@@ -130,9 +132,9 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
         }
 
         if uni.klingons == 0 {
-            println!("\nThe last Klingon battlecruiser has been destroyed, and the invasion thwarted. Good job!");
+            prout!("\nThe last Klingon battlecruiser has been destroyed, and the invasion thwarted. Good job!");
             if uni.alive == false {
-                println!("Unfortunately, you got yourself killed along with it.");
+                prout!("Unfortunately, you got yourself killed along with it.");
             }
             break;
         }
@@ -141,82 +143,81 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
     }
 
 
-    println!("\n\nThe stardate is {:.2}", uni.stardate);
+    prout!("\n\nThe stardate is {:.2}", uni.stardate);
     match uni.death_reason {
         DeathReason::MaximumEntropy => {
-            println!("The Enterprise has experienced a warp core breach, resulting in its complete destruction.");
-            println!("With the Enterprise out of the way, the Klingons proceed to conquer the Federation.");
+            prout!("The Enterprise has experienced a warp core breach, resulting in its complete destruction.");
+            prout!("With the Enterprise out of the way, the Klingons proceed to conquer the Federation.");
         },
         DeathReason::NegativeSpaceWedgie => {
-            println!("The Enterprise's experimental deathray has created a rift in spacetime, through which stream mind-boggling... things with too many tentacles and too little respect for the laws of geometry and physics.");
-            println!("Although most attempts to study them result in insanity, one thing is known for certain: whether through hostility or outright indifference, they see no problem with brutally killing any normal creatures they encounter.");
+            prout!("The Enterprise's experimental deathray has created a rift in spacetime, through which stream mind-boggling... things with too many tentacles and too little respect for the laws of geometry and physics.");
+            prout!("Although most attempts to study them result in insanity, one thing is known for certain: whether through hostility or outright indifference, they see no problem with brutally killing any normal creatures they encounter.");
         },
         DeathReason::Kaboom => {
-            println!("The Enterprise has been destroyed in honorable battle with enemy forces.");
+            prout!("The Enterprise has been destroyed in honorable battle with enemy forces.");
             if uni.klingons > 0 {
-                println!("With the Enterprise out of the way, the Klingons easily conquer the Federation.");
+                prout!("With the Enterprise out of the way, the Klingons easily conquer the Federation.");
             } else {
-                println!("Thankfully, it took the last invading Klingon ship with it. Your noble sacrifice has saved the Federation.");
+                prout!("Thankfully, it took the last invading Klingon ship with it. Your noble sacrifice has saved the Federation.");
             }
         },
         DeathReason::Tribble => {
-            println!("The Enterprise has been invaded with an infestation of Tribbles.");
-            println!("Despite your attempts to destroy the cute vermin, they eat through the Enterprise's supplies.");
-            println!("The ship attempts to dock at the nearest starbase, but is denied access.");
-            println!("You and your crew starve to death, leaving the Federation defenseless.");
+            prout!("The Enterprise has been infested with Tribbles.");
+            prout!("Despite your attempts to destroy the cute vermin, they eat through the Enterprise's supplies.");
+            prout!("You and your crew starve to death, leaving the Federation defenseless.");
         },
         DeathReason::Stranded => {
-            println!("The Enterprise is unable to retrieve you before leaving the system.");
-            println!("As a result, Spock (who had wisely stayed behind) takes command of the ship.");
-            println!("He sides with the Romulans, and uses the Enterprise's immense firepower to help them conquer the galaxy.");
+            prout!("The Enterprise is unable to retrieve you before leaving the system.");
+            prout!("As a result, Spock (who had wisely stayed behind) takes command of the ship.");
+            prout!("He sides with the Romulans, and uses the Enterprise's immense firepower to help them conquer the galaxy.");
         },
         DeathReason::TimeUp => {
-            println!("Your attempts to stop the invasion have failed.");
+            prout!("Your attempts to stop the invasion have failed.");
             if uni.klingons > 5 {
-                println!("With no other options, the Federation onconditionally surrenders to the Klingon Empire.");
-                println!("You and your crew are imprisoned as war criminals, and the Enterprise is repurposed as a garbage scow.");
+                prout!("With no other options, the Federation onconditionally surrenders to the Klingon Empire.");
+                prout!("You and your crew are imprisoned as war criminals, and the Enterprise is repurposed as a garbage scow.");
             } else {
-                println!("However, the terrible damage which you inflicted on their forces allows the Federation to negotiate a treaty which, while highly disadvantageous, leaves its sovereignty intact.");
+                prout!("However, the terrible damage which you inflicted on their forces allows the Federation to negotiate a treaty which, while highly disadvantageous, leaves its sovereignty intact.");
             }
         },
         DeathReason::NoAir => {
-            println!("The Enterprise's life support reserves have run out. As a result, you and your crew suffocate to death.");
-            println!("Without the Enterprise to help stop the invasion, the Federation falls within days.");
-            println!("After drifting through space for several centuries the derelict hulk is found by a Klingon research vessel.");
-            println!("It is taken back to their home world and turned into a museum attraction.");
+            prout!("The Enterprise's life support reserves have run out. As a result, you and your crew suffocate to death.");
+            prout!("Without the Enterprise to help stop the invasion, the Federation falls within days.");
+            prout!("After drifting through space for several centuries the derelict hulk is found by a Klingon research vessel.");
+            prout!("It is taken back to their home world and turned into a museum attraction.");
         },
         DeathReason::NoGas => {
-            println!("The Enterprise has run out of fuel. As a result, the ship's systems cease to function, and you gradually suffocate to death.");
-            println!("Without the Enterprise to help stop the invasion, the Federation falls within days.");
-            println!("After drifting through space for several centuries the derelict hulk is found by a Klingon research vessel.");
-            println!("It is taken back to their home world and turned into a museum attraction.");
+            prout!("The Enterprise has run out of fuel. As a result, the ship's systems cease to function, and you gradually suffocate to death.");
+            prout!("Without the Enterprise to help stop the invasion, the Federation falls within days.");
+            prout!("After drifting through space for several centuries the derelict hulk is found by a Klingon research vessel.");
+            prout!("It is taken back to their home world and turned into a museum attraction.");
         },
         DeathReason::Transformation => {
-            println!("You and your crew have been mutated into strange abominations.");
-            println!("Interestingly, Mr. Spock is unaffected. As a result, he kills you and sides with the Romulans, leading them in a conquest of the galaxy.");
+            prout!("You and your crew have been mutated into strange abominations.");
+            prout!("Interestingly, Mr. Spock is unaffected. As a result, he kills you and sides with the Romulans, leading them in a conquest of the galaxy.");
         },
         DeathReason::Borg => {
-            println!("The Enterprise has been assimilated by the Borg. While they find your cranial capacity sub-par, your advanced technology sparks their interest.");
-            println!("As a result, they decide to assimilate the rest of the Federation.");
-            println!("While the Federation puts up a good fight, it isn't enough; the Federation falls.");
-            println!("If only this had occured a century later; perhaps then things would have turned out differently.");
+            prout!("The Enterprise has been assimilated by the Borg. While they find your cranial capacity sub-par, your advanced technology sparks their interest.");
+            prout!("As a result, they decide to assimilate the rest of the Federation.");
+            prout!("While the Federation puts up a good fight, it isn't enough.");
+            prout!("If only this had occured a century later; perhaps then things would have turned out differently.");
         },
         DeathReason::EventHorizon => {
-            println!("The Enterprise has been sucked into a black hole.");
-            println!("It is crushed like a tin can, leaving the Federation defenseless.");
+            prout!("The Enterprise has been sucked into a black hole.");
+            prout!("It is crushed like a tin can, leaving the Federation defenseless.");
         },
         DeathReason::SelfDestruct => {
-            println!("Rather than let your ship fall into the Klingons' hands, you have blown it up.");
+            prout!("Rather than let your ship fall into the Klingons' hands, you have blown it up.");
             if uni.klingons > 0 {
-                println!("Without you, the Federation soon falls to the Klingons.");
+                prout!("Without you, the Federation soon falls to the Klingons.");
             } else {
-                println!("The blast takes out the last invading ship, saving the Federation.");
-                println!("You are remembered forever as the heroes who made the ultimate sacrifice.");
+                prout!("The blast takes out the last invading ship, saving the Federation.");
+                prout!("You are remembered forever as the heroes who made the ultimate sacrifice.");
             }
         },
         DeathReason::GalaxyEdge => {
-            println!("Your repeated attempts to cross the negative energy barrier surrounding the galaxy have destroyed the Enterprise.");
-            println!("Your navigation is abominable.");
+            slow_prout("Your repeated attempts to cross the negative energy barrier surrounding the galaxy have destroyed the Enterprise.");
+            slow_prout("Your navigation is abominable.");
         },
         _ => {}
     }

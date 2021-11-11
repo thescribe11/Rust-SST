@@ -1,7 +1,7 @@
 use rand::Rng;
-
 use crate::io::{get_args, get_yorn, slow_prout};
 use crate::finish::DeathReason;
+use crate::prout;
 use crate::{input, io::abbrev};
 
 impl crate::structs::Universe {
@@ -12,19 +12,19 @@ impl crate::structs::Universe {
 
         // Check to make sure the drive the player wants to move isn't damaged or unusable
         if use_impulse && self.damage.impulse_drive > 3.5 {
-            println!("[*Engineering*] Sir, the Impulse Drive is inoperable. We canna' use it.");
+            prout!("[*Engineering*] Sir, the Impulse Drive is inoperable. We canna' use it.");
             return
         } else if !use_impulse && self.damage.warp_drive > 2.0 {
-            println!("[*Engineering*] The warp coils are smashed! Using it right now would blow the ship to smithereens!");
+            prout!("[*Engineering*] The warp coils are smashed! Using it right now would blow the ship to smithereens!");
             return
         } else if !use_impulse && self.damage.warp_drive > 0.0 && self.warp_factor > 2.5 {
-            println!("[*Engineering*] The warp engines are damaged, sir; I can only give you warp 2.5.");
+            prout!("[*Engineering*] The warp engines are damaged, sir; I can only give you warp 2.5.");
             return
         }
          else if !use_impulse && self.cloaked {
-            println!("[*Engineering*] We canna' use the warp drive while the claoking device is active!");
+            prout!("[*Engineering*] We canna' use the warp drive while the claoking device is active!");
             if self.damage.impulse_drive < 3.5 {
-                println!("[*Engineering*] ... that said, I could probably give you impulse.");
+                prout!("[*Engineering*] ... that said, I could probably give you impulse.");
             }
             return;
         }
@@ -40,7 +40,7 @@ impl crate::structs::Universe {
                 match raw.parse::<f64>() {
                     Ok(x) => (-x.to_radians().sin(), x.to_radians().cos()),
                     Err(_) => {
-                        println!("[*Helm*] That isn't an angle.");
+                        prout!("[*Helm*] That isn't an angle.");
                         return;
                     }
                 }
@@ -64,7 +64,7 @@ impl crate::structs::Universe {
                 match raw.parse::<f64>() {
                     Ok(x) => x,
                     Err(_) => {
-                        println!("[*Helm*] \"Second to the right and straight on till morning\" isn't a valid course.");
+                        prout!("[*Helm*] \"Second to the right and straight on till morning\" isn't a valid course.");
                         return;
                     }
                 }
@@ -77,14 +77,14 @@ impl crate::structs::Universe {
         };
 
         if power >= self.energy {
-            println!("[*Mr. Spock*] Captain, we do not have sufficient power to complete that manuever.");
+            prout!("[*Mr. Spock*] Captain, we do not have sufficient power to complete that manuever.");
             if use_impulse {
-                println!("According to my calculations, we can only go {:.2} quadrants before we run out of power.", (self.energy - 20.0) * 10.0);
+                prout!("According to my calculations, we can only go {:.2} quadrants before we run out of power.", (self.energy - 20.0) * 10.0);
             }
             else if self.shield_status || (0.5*power) > self.energy {
                 let iwarp = (self.energy/(distance+0.05)).powf(1.0/3.0);
                 if iwarp > 0.0 {
-                    println!("That said, we could do it at warp {}{}", iwarp, match self.shield_status {
+                    prout!("That said, we could do it at warp {}{}", iwarp, match self.shield_status {
                         false => ".",
                         true => ", provided we lower the shields."
                     });
@@ -101,13 +101,13 @@ impl crate::structs::Universe {
         if time > (self.time_remaining * 0.8) {  // Ask for confirmation if the trip takes more than 80% of the remaining time
             match use_impulse {
                 true => {
-                    println!("[*Mr. Spock*] Captain, we can only go 0.95 sectors per stardate under impulse power. Are you sure we dare spend the time?");
+                    prout!("[*Mr. Spock*] Captain, we can only go 0.95 sectors per stardate under impulse power. Are you sure we dare spend the time?");
                     if !abbrev(&input("> ").to_lowercase(), "y", "yes") {
                         return
                     }
                 },
                 false => {
-                    println!("[*Mr. Spock*] Sir, that would take us {:.2}% of our remaining time. Are you sure this is wise?", 100.0*time/self.time_remaining);
+                    prout!("[*Mr. Spock*] Sir, that would take us {:.2}% of our remaining time. Are you sure this is wise?", 100.0*time/self.time_remaining);
                     if !abbrev(&input("> ").to_lowercase(), "y", "yes") {
                         return
                     }
@@ -200,9 +200,9 @@ impl crate::structs::Universe {
                     0 => continue,
                     1 | 2 => {  // Neutral or inanimate object
                         interrupted = true;
-                        println!("\nWARNING: Course blocked by object at sector {} {}", nsvert.round() as i32 + 1, nshoriz.round() as i32 + 1);
+                        prout!("\nWARNING: Course blocked by object at sector {} {}", nsvert.round() as i32 + 1, nshoriz.round() as i32 + 1);
                         let stop_energy = 95.0 * self.warp_factor;
-                        println!("Emergency stop requires {} units of energy.", stop_energy);
+                        prout!("Emergency stop requires {} units of energy.", stop_energy);
                         self.energy -= stop_energy;
 
                         if self.energy <= 0.0 {
@@ -269,13 +269,13 @@ impl crate::structs::Universe {
         self.quadrants[old_qvert][old_qhoriz].sectors[old_sloc] = 0;
 
         if self.get_quadrant().neutral_zone() && self.damage.radio == 0.0 {
-            println!("\n[*Lt. Uhura*] Captain, a Romulan ship is hailing us. I'll put it on audio.");
+            prout!("\n[*Lt. Uhura*] Captain, a Romulan ship is hailing us. I'll put it on audio.");
             if self.ididit {
                 // The Romulans are royally pissed; skip the pleasantries.
-                println!("*click* DIE, TREACHEROUS HUMAN SCUM!!!");
+                prout!("*click* DIE, TREACHEROUS HUMAN SCUM!!!");
             } else {
                 // Courteously threaten to destroy the Enterprise.
-                println!("*click* Captain, I'm afraid you're violating the Romulan Neutral Zone. Please leave, lest your situation become... terminally unpleasant.");
+                prout!("*click* Captain, I'm afraid you're violating the Romulan Neutral Zone. Please leave, lest your situation become... terminally unpleasant.");
             }
         }
     }
@@ -297,7 +297,7 @@ impl crate::structs::Universe {
 
         self.damage.add_ramming_damage(enemy_type);
 
-        println!("***Enemy ship at ({}, {}) destroyed in collision.", (nloc / 10) + 1, (nloc % 10) + 1);
+        prout!("***Enemy ship at ({}, {}) destroyed in collision.", (nloc / 10) + 1, (nloc % 10) + 1);
     }
 
     /// The player is attempting to leave the galaxy.
@@ -308,7 +308,7 @@ impl crate::structs::Universe {
     /// the abominableness of their navigation, and so kill 'em.
     #[allow(non_snake_case)]
     pub fn NOPE (&mut self) {
-        if self.leave_attempts < 3 {
+        if self.leave_attempts < 2 {
             slow_prout("\nYOU HAVE ATTEMPTED TO CROSS THE NEGATIVE ENERGY BARRIER AT THE EDGE OF THE GALAXY.\nTHE THIRD TIME YOU TRY TO DO THIS YOU WILL BE DESTROYED.");
             self.leave_attempts += 1;
         } else {
@@ -325,15 +325,15 @@ impl crate::structs::Universe {
             new_factor = match input("New warp factor: ").parse::<f64>() {
                 Ok(f) => f,
                 Err(_) => {
-                    println!("[*Helm*] Say again, sir?");
+                    prout!("[*Helm*] Say again, sir?");
                     return
                 }
             }
         }
 
         if (new_factor <= 0.0) | (new_factor > 10.0) {
-            println!("[*Engineering*] Do you think I'm God? I canna' change the laws of physics!");
-            println!("[*Mr. Spock*] Captain, we can only go up to warp 10.");
+            prout!("[*Engineering*] Do you think I'm God? I canna' change the laws of physics!");
+            prout!("[*Mr. Spock*] Captain, we can only go up to warp 10.");
             return
         } else if new_factor > 6.0 {
             // Speeds greater than warp 6 risk damage to the warp engines.
@@ -353,7 +353,7 @@ impl crate::structs::Universe {
                 Some (d) => match d.len() {
                     1 => d[0],
                     _ => {
-                        println!("Huh?");
+                        prout!("Huh?");
                         return
                     }
                 },
@@ -364,7 +364,7 @@ impl crate::structs::Universe {
         }
 
         if duration < 0.0 {
-            println!("[*Mr. Spock*] Captain, need I remind you that under normal conditions we always go forwards in time?");
+            prout!("[*Mr. Spock*] Captain, need I remind you that under normal conditions we always go forwards in time?");
             return
         } else if duration >= self.time_remaining {
             if get_yorn("Captain, that would take more than our remaining time. Are you sure you wish to do this?\n> ") {

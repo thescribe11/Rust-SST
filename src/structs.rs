@@ -3,7 +3,7 @@ use rand::{Rng, random};
 use serde::{Serialize, Deserialize};
 use termion::color::{Blue, Fg, Green, Red, Reset};
 use crate::{constants::{DEBUG, ALGERON}, finish::DeathReason, io::{ControlMode, abbrev, get_args, get_yorn, input}, slow_prout};
-
+use crate::prout;
 use crate::damage::Damage;
 
 
@@ -65,15 +65,7 @@ impl Universe {
             stardate: (100.0f64*(31.0*rand::random::<f64>()+20.0)) as f64,
             time_remaining: 0.0,
 
-            // Since the compiler won't let me .copy() the Vec in Universe...
-            quadrants: [[Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default()],
-            [Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default()],
-            [Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default()],
-            [Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default()],
-            [Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default()],
-            [Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default()],
-            [Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default()],
-            [Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default(),Quadrant::default()],],
+            quadrants: <[[Quadrant; 8]; 8]>::default(),
             charted: [[false; 8]; 8],
             password,
             
@@ -176,11 +168,11 @@ impl Universe {
         slow_prout("This is your captain speaking. We are abandoning ship. Please make your way to the nearest escape pod.");
 
         if self.damage.shuttles == 0.0 {
-            println!("You and your core crew escape in the Enterprise's shuttles, and eventually make your way to a mothballed ship - the Faerie Queen.");
+            prout!("You and your core crew escape in the Enterprise's shuttles, and eventually make your way to a mothballed ship - the Faerie Queen.");
             if self.damage.transporter == 0.0 {
-                println!("The Enterprise's remaining complement beam down to the nearest planet, where they are quickly captured.");
+                prout!("The Enterprise's remaining complement beam down to the nearest planet, where they are quickly captured.");
             } else {
-                println!("Unable to escape the ship, your remaining crewmembers are killed.");
+                prout!("Unable to escape the ship, your remaining crewmembers are killed.");
             }
         }
     }
@@ -215,7 +207,7 @@ impl Universe {
             EntityType::Klingon => {
                 self.score.kill_klingon();
                 self.klingons -= 1;
-                self.add_time(-1.5);
+                self.time_remaining += 1.5;
             },
             EntityType::Romulan => self.score.kill_romulan(),
             EntityType::Tholian => self.score.kill_tholian(),
@@ -237,13 +229,10 @@ pub struct Quadrant {
     romulans: u8,
 }
 
-impl Quadrant {
+impl Default for Quadrant {
     fn default () -> Quadrant {
         //! Creates a quadrant. A starbase, if present, is added later.
-
-        let mut randint = rand::thread_rng();
-
-        let mut to_return = Quadrant {
+        let to_return = Quadrant {
             sectors: {let mut x = Vec::new(); x.extend_from_slice(&[0u8; 100]); x},  // 1 = star, 2 = starbase, 3 = klingon, 4 = romulan, 5 = black hole, 6 = tholian, 7 = unknown entity, 8 = player's ship
             entities: Vec::new(),
             is_supernova: false,
@@ -255,7 +244,9 @@ impl Quadrant {
 
         return to_return
     }
+}
 
+impl Quadrant {
     fn init (&mut self, difficulty: u8) -> u32 {
         //! Initialize the quadrant
 
@@ -481,34 +472,34 @@ impl Score {
 
     pub fn print_score (&self) {
         if self.klingons_killed > 0 {
-            println!("{} Klingons killed:             +{}", &self.klingons_killed, self.klingons_killed * 150);
+            prout!("{} Klingons killed:             +{}", &self.klingons_killed, self.klingons_killed * 150);
         }
         if self.romulans_killed > 0 {
-            println!("{} Romulans killed:             +{}", &self.romulans_killed, self.romulans_killed * 200);
+            prout!("{} Romulans killed:             +{}", &self.romulans_killed, self.romulans_killed * 200);
         }
         if self.tholians_killed > 0 {
-            println!("{} Tholians killed:             +{}", &self.tholians_killed, self.tholians_killed * 300);
+            prout!("{} Tholians killed:             +{}", &self.tholians_killed, self.tholians_killed * 300);
         }
         if self.others_killed > 0 {
-            println!("{} unknown entities killed:     +{}", &self.others_killed, self.others_killed * 50);
+            prout!("{} unknown entities killed:     +{}", &self.others_killed, self.others_killed * 50);
         }
         if self.bases_killed > 0 {
-            println!("{} starbases destroyed:         -{}", &self.bases_killed, self.bases_killed * 500);
+            prout!("{} starbases destroyed:         -{}", &self.bases_killed, self.bases_killed * 500);
         }
         if self.stars_killed > 0 {
-            println!("{} stars blown up:              -{}", &self.stars_killed, self.stars_killed * 10);
+            prout!("{} stars blown up:              -{}", &self.stars_killed, self.stars_killed * 10);
         }
         if self.ididit {
-            println!("Caught using a cloaking device: -100");
+            prout!("Caught using a cloaking device: -100");
         }
         if self.ships_lost > 0 {
-            println!("{} ships lost:                  -{}", &self.ships_lost, self.ships_lost * 400);
+            prout!("{} ships lost:                  -{}", &self.ships_lost, self.ships_lost * 400);
         }
         if !self.alive {
-            println!("Penalty for getting killed:     -200")
+            prout!("Penalty for getting killed:     -200")
         }
 
-        println!("\nTOTAL SCORE: {}", self.get_score());
+        prout!("\nTOTAL SCORE: {}", self.get_score());
     }
 
     pub fn kill_klingon (&mut self) {
