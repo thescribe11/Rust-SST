@@ -17,6 +17,7 @@ finish.rs - various ending conditions
 deathray.rs - logic for the experimental deathray
 */
 
+// NOTE: This must be ran with the Nightly compiler.
 #![feature(allow_internal_unstable)]
 
 mod structs;
