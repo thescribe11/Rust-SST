@@ -1,7 +1,8 @@
-use rand::Rng;
-use crate::io::{get_args, get_yorn, slow_prout};
+use rand::{Rng, thread_rng};
+use rand::prelude::SliceRandom;
+use crate::io::{extra_slow_prout, get_args, get_yorn, slow_prout};
 use crate::finish::DeathReason;
-use crate::prout;
+use crate::{prout};
 use crate::{input, io::abbrev};
 
 impl crate::structs::Universe {
@@ -268,14 +269,44 @@ impl crate::structs::Universe {
         self.quadrants[self.qvert][self.qhoriz].sectors[self.sloc] = 8;
         self.quadrants[old_qvert][old_qhoriz].sectors[old_sloc] = 0;
 
+        if !self.is_quadrant_accessible(self.qvert, self.qhoriz) {
+            self.emergency_jump();
+            return;
+        }
+
         if self.get_quadrant().neutral_zone() && self.damage.radio == 0.0 {
             prout!("\n[*Lt. Uhura*] Captain, a Romulan ship is hailing us. I'll put it on audio.");
             if self.ididit {
                 // The Romulans are royally pissed; skip the pleasantries.
-                prout!("*click* DIE, TREACHEROUS HUMAN SCUM!!!");
+                slow_prout("*click* DIE, TREACHEROUS HUMAN SCUM!!!");
             } else {
                 // Courteously threaten to destroy the Enterprise.
-                prout!("*click* Captain, I'm afraid you're violating the Romulan Neutral Zone. Please leave, lest your situation become... terminally unpleasant.");
+                slow_prout("*click* Captain, I'm afraid you're violating the Romulan Neutral Zone. Please leave, lest your situation become... terminally unpleasant.");
+            }
+        }
+    }
+
+
+    /// Change the Enterprise's location without dickering around with the old coordinates
+    pub fn non_movement_place_ship (&mut self, new_qvert: usize, new_qhoriz: usize, new_sloc: usize) {
+        self.quadrants[self.qvert][self.qhoriz].sectors[self.sloc] = 0;  // Remove Enterprise from old quadrant
+        
+        if !self.is_quadrant_accessible(self.qvert, self.qhoriz) {  // Check for a supernova or tholian webbing
+            self.emergency_jump();
+            return;
+        }
+
+        self.qvert = new_qvert; self.qhoriz = new_qhoriz; self.sloc = new_sloc;  // Change the Enterprise's coords
+        self.quadrants[self.qvert][self.qhoriz].sectors[self.sloc] = 8;  // Place Enterprise in new quadrant
+
+        if self.get_quadrant().neutral_zone() && self.damage.radio == 0.0 {  // Check to see if the new quadrant is part of the Neutral Zone
+            prout!("\n[*Lt. Uhura*] Captain, a Romulan ship is hailing us. I'll put it on audio.");
+            if self.ididit {
+                // The Romulans are royally pissed; skip the pleasantries.
+                slow_prout("*click* DIE, TREACHEROUS HUMAN SCUM!!!");
+            } else {
+                // Courteously threaten to destroy the Enterprise.
+                slow_prout("*click* Captain, I'm afraid you're violating the Romulan Neutral Zone. Please leave, lest your situation become... terminally unpleasant.");
             }
         }
     }
@@ -378,4 +409,102 @@ impl crate::structs::Universe {
         self.hit_me = true;  // Time has elapsed, so the baddies get to attack.
     }
 
+
+    /// Risk a long-range transport to the nearest starbase.
+    /// Doesn't work if the subspace radio is damaged.
+    pub fn call (&mut self) {
+        if self.damage.radio > 1.8 {  // Can't send data
+            prout!("[*Lt. Uhura*] Captain, the subspace radio is inoperable.");
+            return;
+        } else if self.starbases == 0 {
+            slow_prout("[*Lt. Uhura*] I'm sorry captain... nobody's responding to our distress calls.");
+            return;
+        }
+        let available = self.get_starbases();  // Since the compiler complains about temporary values otherwise
+        let selected = match available.choose(&mut rand::thread_rng()) {
+            Some(s) => s,
+            None => {
+                slow_prout("[*Lt. Uhura*] I'm sorry captain... nobody's responding to our distress calls.");
+                return;
+            }
+        };
+        
+        if crate::DEBUG {
+            prout!("Selected starbase: {:?}", selected);
+        }
+        if !get_yorn("[*Lt. Sulu*] Captain, are you sure this is a good idea?\n> ") {
+            return;
+        }
+
+        let starbase_loc = self.get_quadrant().search(crate::structs::EntityType::Starbase)[0].1;
+        
+        let mut unoccupied: Vec<usize> = Vec::new();
+        for sector in crate::scans::get_vicinity(starbase_loc) {
+            if self.get_other_quadrant(&selected[0], &selected[1]).sector(&sector) == 0 {
+                unoccupied.push(sector);
+            }
+        }
+
+        self.sloc = match unoccupied.choose(&mut rand::thread_rng()) {
+            Some(s) => *s,
+            None => {
+                slow_prout("[*Lt. Uhura*] Captain, one of the starbases got our distress call, but it doesn't have any open births.");
+                return;
+            }
+        };
+
+        self.qvert = selected[0]; self.qhoriz = selected[1];
+    }
+
+
+    pub fn emergency_jump (&mut self) {
+        //! Attempt to get away from a supernova.
+
+        slow_prout("**AWHOOGAH**   **AWHOOGAH**");
+        slow_prout("[*Comp.*] SUPERNOVA DETECTED");
+        slow_prout("[*Comp.*] ENGAGING EMERGENCY ENGINE OVERRIDE");
+
+        if self.damage.computer > 0.15 {
+            extra_slow_prout("  ");
+            slow_prout("[*Comp.*] !ERROR!: CONTROL INTERLINKS INOPERABLE!                      ");
+            prout!("******************* BOOM *******************");
+            self.die(DeathReason::Supernova);
+            return;
+        }
+
+        let mut randint = thread_rng();
+        let dvert: i32 = randint.gen_range(-2..2);
+        let dhoriz = randint.gen_range(-2..2);
+        
+        let chosen_vert = self.qvert as i32 + dvert;
+        let chosen_horiz = self.qhoriz as i32 + dhoriz;
+
+        if chosen_vert < 0 || chosen_vert > 7 
+          || chosen_horiz < 0 || chosen_horiz > 7 
+          || randint.gen::<f32>() < 0.2 
+          || !self.is_quadrant_accessible(chosen_vert as usize, chosen_horiz as usize){
+            slow_prout("[*Comp.*] OVERRIDE FAILED. SO LONG, AND THANKS FOR ALL THE FISH.                      ");
+            prout!("******************* BOOM *******************");
+            self.die(DeathReason::Supernova);
+            return;
+        }
+
+        self.energy -= (100 + 100*chosen_vert+100*chosen_horiz) as f64;
+        if self.energy < 0.0 {
+            self.die(DeathReason::NoGas);
+            return;
+        }
+
+        let mut new_sloc: usize = 0;
+        let mut spot_found = false;
+        while !spot_found {
+            new_sloc = randint.gen_range(0..100);
+            if self.get_other_quadrant(&(chosen_vert as usize), &(chosen_horiz as usize)).sector(&new_sloc) == 0 {
+                self.sloc = new_sloc;
+                spot_found = true;
+            }
+        }
+
+        self.non_movement_place_ship(chosen_vert as usize, chosen_horiz as usize, new_sloc)
+    }
 }

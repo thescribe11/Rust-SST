@@ -90,7 +90,7 @@ impl crate::structs::Universe {
 
                 // Process impact
                 match self.get_quadrant().get_entity(torp_loc as usize) {
-                    Some((t, loc, he, al)) => {
+                    Some((t, _, _, _)) => {
                         match t {
                             EntityType::BlackHole => {
                                 prout!("\n Torpedo swallowed by black hole.");
@@ -228,7 +228,7 @@ impl crate::structs::Universe {
                 prout!("*********************** BOOOM ***********************");
                 prout!("*****************************************************");
                 print!("{}", Fg(Reset));
-                self.death_reason = DeathReason::MaximumEntropy;
+                self.die(DeathReason::MaximumEntropy)
             },
             13 => {
                 slow_prout("[*Mr. Sulu*] Captain, Yagsdsadfagag, brascscha!\n");
@@ -236,7 +236,7 @@ impl crate::structs::Universe {
                 prout!("[*Mr. Spock*] Fascinating! It would seem that all the humans aboard have been transformed into strange mutations.");
                 prout!("[*Mr. Spock*] Thankfully, Vulcans do not appear to be affected.\n");
                 prout!("[*Cpt. Kirk*] Raauuch!");
-                self.death_reason = DeathReason::Transformation;
+                self.die(DeathReason::Transformation);
             },
             14 => {
                 slow_prout("[*Mr. Sulu*] Captain, it's working!");
@@ -249,11 +249,11 @@ impl crate::structs::Universe {
                 extra_slow_prout("      ");
                 slow_prout("[*Lt. Uhura*] Captain, it's hailing us.");
                 slow_prout("*click* We are the Borg. Lower your shields and surrender your ship. Your biological and technological distinctiveness will be added to our own. Your culture will adapt to service us. Resistance is futile");
-                self.death_reason = DeathReason::Borg;
+                self.die(DeathReason::Borg);
             },
             15 => {
                 slow_prout("[*Mr. Sulu*] Um... Captain, it appears to be making tribbles?");
-                self.death_reason = DeathReason::Tribble;
+                self.die(DeathReason::Tribble);
             },
             _ => {
                 panic!("This should be inaccessible!")

@@ -97,6 +97,7 @@ impl crate::Universe {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
 pub enum DeathReason {
+    Supernova, // Blown up by a supernova
     MaximumEntropy,  // Warp core breach
     NegativeSpaceWedgie,  // Eldritch abomination
     Kaboom,   // Ship blown up

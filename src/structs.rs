@@ -119,20 +119,24 @@ impl Universe {
         return to_return
     }
 
-    pub fn dididoit (&self) -> bool {
-        self.ididit
-    }
-
     pub fn doit (&mut self) {
         self.ididit = true;
+        self.score.doit();
     }
 
-    pub fn get_klingons (&self) -> u32 {
-        self.klingons
-    }
 
-    pub fn get_starbases (&self) -> u32 {
-        self.starbases
+    /// Get a list of the starbases' locations.
+    pub fn get_starbases (&self) -> Vec<[usize; 2]> {
+        let mut locs: Vec<[usize; 2]> = Vec::new();
+
+        for vert in 0..8 {
+            for horiz in 0..8 {
+                if self.quadrants[vert][horiz].search(EntityType::Starbase).len() > 0 {
+                    locs.push([vert, horiz]);
+                }
+            }
+        }
+        locs
     }
 
     pub fn kill_starbase (&mut self) {
@@ -161,6 +165,7 @@ impl Universe {
         self.alive = false;
         self.death_reason = reason;
         self.score.lose_ship();
+        self.score.die();
     }
 
     pub fn abandon_ship (&mut self) {
@@ -178,12 +183,12 @@ impl Universe {
     }
 
     /// Set the universe's alert level.
-    pub fn set_alert_level(&mut self, alert_level: Alert) {
+    pub fn set_alert(&mut self, alert_level: Alert) {
         self.alert_level = alert_level;
     }
 
     /// Get a reference to the universe's alert level.
-    pub fn alert_level(&self) -> &Alert {
+    pub fn alert(&self) -> &Alert {
         &self.alert_level
     }
 
@@ -340,6 +345,8 @@ impl Quadrant {
                _ => continue  // Sector occupied; continue searching for an empty spot
            }
         }
+
+        self.starbases += 1;
     }
 
     /// Get vital statistics for long-range scanning

@@ -21,7 +21,7 @@ impl crate::structs::Universe {
             self.cloaked = true;
             if self.get_quadrant().search(EntityType::Romulan).len() > 0 {  // Check for Romulans
                 prout!("\nA Romulan ship has observed you using your cloaking device. From now on, all Romulan ships will be hostile towards you.");
-                self.ididit = true; // The Romulans are royally pissed.
+                self.doit(); // The Romulans are royally pissed.
             }
         } else {
             self.cloaked = false;
@@ -30,7 +30,7 @@ impl crate::structs::Universe {
 
 
     /// Control the deflector shields
-    pub fn shields (&mut self, raw_mode: String, amount: f64) {
+    pub fn shields (&mut self, raw_mode: String, raw_amount: f64) {
         if self.damage.shields > 0.0 {
             prout!("[*Tactical*] Sir, the shield control circuit thingies are broke; I can't do anything till they're repaired.");
             return;
@@ -47,17 +47,16 @@ impl crate::structs::Universe {
             self.shield_status = false;
         }
         else if abbrev(&mode, "s", "set") {
-            let amount = match amount {
-                f64::NAN => {
-                    match input("[*Tactical*] What do you wanna have me set 'em to?\n>").parse::<f64>() {
+            let amount = if raw_amount.is_nan() {
+                    match input("[*Tactical*] Whaddya wanna have me set 'em to?\n> ").parse::<f64>() {
                         Ok(x) => x,
                         Err(_) => {
                             println!("[*Tactical*] I, like, can't understand what ya sayin'.");
                             return;
                         }
                     }
-                },
-                _ => amount
+                } else {
+                    raw_amount
             };
 
             if amount < 0.0 {

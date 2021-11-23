@@ -29,12 +29,14 @@ mod damage;
 mod scans;
 mod weapons;
 mod defense;
+mod enums;
 
 use io::{input, freeze, thaw, CommandType, em_exit, get_yorn, slow_prout};
+use rand::Rng;
 use structs::Universe;
 use finish::DeathReason;
 
-use crate::constants::DEBUG;
+use crate::{constants::DEBUG, enums::Event};
 
 
 fn main() {
@@ -78,6 +80,9 @@ fn main() {
 fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
     //! The game's main execution loop
     
+    let mut upcoming_events: Vec<enums::Event> = Vec::new();
+    upcoming_events.push(Event::Supernova(1.0));  // rand::thread_rng().gen_range(1.5..9.0)
+
     loop {
         match io::parse_args(input("\nCommad > ")) {
             CommandType::Abandon => {
@@ -88,7 +93,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
                     uni.abandon_ship();
                 }
             },
-            CommandType::CallStarbase => {},
+            CommandType::CallStarbase => uni.call(),
             CommandType::Capture => {},
             CommandType::Cloak(yorn) => uni.cloak(yorn),
             CommandType::Commands => {},
@@ -140,11 +145,48 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
         }
 
         if uni.death_reason != DeathReason::None { break; }
-    }
 
+        for e in upcoming_events.clone() {
+            match e {
+                Event::TractorBeam(t) => {
+                    if uni.stardate >= t {
+                        todo!()
+                    }
+                },
+                Event::Supernova(t) => {
+                    if uni.stardate >= t {
+                        let mut randint = rand::thread_rng();
+                        loop {
+                            let v: usize = randint.gen_range(0..8);
+                            let h: usize = randint.gen_range(0..8);
+
+                            if !uni.get_other_quadrant(&v, &h).is_supernova {
+                                uni.quadrants[v][h].is_supernova = true;
+                                if (uni.qvert, uni.qhoriz) == (v, h) {
+                                    uni.emergency_jump();
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    match upcoming_events.iter().position(|x| *x==e) {
+                        Some(x) => {upcoming_events.remove(x);},
+                        None => {},
+                    };
+
+                    upcoming_events.push(Event::Supernova(rand::thread_rng().gen_range(1.5..9.0)));
+                },
+                Event::None => {},
+            }
+        }
+    }
 
     prout!("\n\nThe stardate is {:.2}", uni.stardate);
     match uni.death_reason {
+        DeathReason::Supernova => {
+            prout!("The Enterprise has been caught in a supernova, instantly frying the crew.");
+        },
         DeathReason::MaximumEntropy => {
             prout!("The Enterprise has experienced a warp core breach, resulting in its complete destruction.");
             prout!("With the Enterprise out of the way, the Klingons proceed to conquer the Federation.");
@@ -226,6 +268,8 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
 }
 
 mod tests {
+    use rand::thread_rng;
+
     use crate::io::{parse_args, CommandType, ControlMode};
 
     #[test]
@@ -256,5 +300,10 @@ mod tests {
         uni.srscan();
         uni.lrscan();
         uni.starchart();
+    }
+
+    #[test]
+    fn test_randomness () {
+        println!("{}", rand::Rng::gen_range(&mut thread_rng(), -5..5));
     }
 }

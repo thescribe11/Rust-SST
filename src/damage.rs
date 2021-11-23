@@ -25,6 +25,7 @@ pub struct Damage {
     pub lrsensors: f64,
     pub srsensors: f64,
     pub cloak: f64,
+    pub computer: f64,
 }
 
 impl Damage {
@@ -47,6 +48,7 @@ impl Damage {
             lrsensors: 0.0,
             srsensors: 0.0,
             cloak: 0.0,
+            computer: 0.0,
         }
     }
 
@@ -74,7 +76,8 @@ impl Damage {
 * Shuttles:              {}
 * Long-Range Sensors:    {}
 * Short-Range Sensors:   {}
-* Cloaking Device:       {}", 
+* Cloaking Device:       {}
+* Computer:              {}", 
     self.reactors, 
     self.life_support, 
     self.warp_drive, 
@@ -89,7 +92,8 @@ impl Damage {
     self.shuttles,
     self.lrsensors,
     self.srsensors,
-    self.cloak
+    self.cloak,
+    self.computer,
         )
     }
 
@@ -113,6 +117,7 @@ impl Damage {
         self.srsensors     += severity * 3.0 * rng.gen::<f64>();
         self.cloak         += severity * 3.0 * rng.gen::<f64>();
         self.shields       += severity * 3.0 * rng.gen::<f64>();
+        self.computer      += severity * 3.0 * rng.gen::<f64>();
     }
 
     /// Repair damage to the ship's systems.
@@ -120,7 +125,7 @@ impl Damage {
         self.reactors -= elapsed; self.life_support -= elapsed; self.warp_drive -= elapsed; self.impulse_drive -= elapsed;
         self.phasers-= elapsed; self.torpedoes -= elapsed; self.tractors -= elapsed; self.deathray -= elapsed;
         self.radio -= elapsed; self.transporter -= elapsed; self.shuttles -= elapsed; self.lrsensors -= elapsed; 
-        self.srsensors -= elapsed; self.cloak -= elapsed; self.shields -= elapsed;
+        self.srsensors -= elapsed; self.cloak -= elapsed; self.shields -= elapsed; self.computer -= elapsed;
 
         if self.reactors < 0.0 { self.reactors = 0.0 };
         if self.life_support < 0.0 { self.reactors = 0.0 };
@@ -137,5 +142,6 @@ impl Damage {
         if self.srsensors < 0.0 { self.srsensors = 0.0 };
         if self.cloak < 0.0 { self.cloak = 0.0 };
         if self.shields < 0.0 { self.shields = 0.0 };
+        if self.computer < 0.0 { self.computer = 0.0 };
     }
 }

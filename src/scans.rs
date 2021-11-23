@@ -6,16 +6,17 @@ impl crate::structs::Universe {
     pub fn srscan (&mut self) {
         //! Perform a short-range sensor scan
 
+        self.set_alert(Alert::Green);
         let quad = self.get_quadrant();
         if (quad.search(EntityType::Romulan).len() > 0)
         || quad.search(EntityType::Tholian).len() > 0 
         || quad.search(EntityType::Unknown).len() > 0
         || self.on_life_reserve {
-            self.alert_level = Alert::Yellow;
+            self.set_alert(Alert::Yellow);
         }
         if quad.search(EntityType::Klingon).len() > 0
         || quad.search(EntityType::Romulan).len() > 0 && self.ididit {
-            self.alert_level = Alert::Red
+            self.set_alert(Alert::Red);
         }
 
         println!("    1 2 3 4 5 6 7 8 9 10");
@@ -78,7 +79,7 @@ impl crate::structs::Universe {
 
             match vert {
                 0 => println!(" Stardate:      {:.2}", self.stardate),
-                1 => println!(" Condition:     {}{}", match self.alert_level {
+                1 => println!(" Condition:     {}{}", match self.alert() {
                     Alert::Red => "RED",
                     Alert::Yellow => "Yellow",
                     Alert::Green => "Green",
@@ -161,4 +162,34 @@ impl crate::structs::Universe {
         }
         println!("  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛");
     }
+}
+
+pub fn get_vicinity (loc: usize) -> Vec<usize> {
+    let mut vicinity: Vec<usize> = Vec::new();
+    if loc % 10 != 0 {
+        vicinity.push(loc - 1);
+        if loc > 9 {
+            vicinity.push(loc-11);
+        }
+        if loc < 90 {
+            vicinity.push(loc+9);
+        }
+    }
+    if loc % 10 != 9 {
+        vicinity.push(loc + 1);
+        if loc > 9 {
+            vicinity.push(loc -9);
+        }
+        if loc < 90 {
+            vicinity.push(loc+11);
+        }
+    }
+    if loc > 9 {
+        vicinity.push(loc-10);
+    }
+    if loc < 90 {
+        vicinity.push(loc+10);
+    }
+
+    return vicinity;
 }
