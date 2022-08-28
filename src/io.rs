@@ -10,6 +10,10 @@ use clearscreen::clear;
 use serde_json::{to_string, from_str};
 
 
+pub const SLOW: u64 = 20;
+pub const EXTRA_SLOW: u64 = 1000;
+
+
 /// A better version of println! which wraps lines by whole words 
 /// instead of characters.
 #[macro_export]
@@ -140,28 +144,28 @@ pub fn input(prompt: &str) -> String {
 
 
 
-pub fn slow_prout <T> (prompt: T) where T: ToString {
-    for i in prompt.to_string().chars() {
+pub fn slow_prout <T> (text: T, speed: u64, terminal_newline: bool) where T: ToString {
+    for i in text.to_string().chars() {
         print!("{}", i);
         stdout().flush().unwrap();
-        thread::sleep(time::Duration::from_millis(20))
+        thread::sleep(time::Duration::from_millis(speed))
     }
-    println!();
+    if terminal_newline {
+        print!("\n");
+    }
 }
 
 
-/// slow_prout but using a gap of 1 second
-pub fn extra_slow_prout <T> (prompt: T) where T: ToString {
-    for i in prompt.to_string().chars() {
-        print!("{}", i);
-        stdout().flush().unwrap();
-        thread::sleep(time::Duration::from_millis(1000))
+pub fn wait (length: u32) {
+    // Pause for `length` seconds
+
+    for _ in 0..length {
+        thread::sleep(time::Duration::from_millis(EXTRA_SLOW));
     }
-    println!();
 }
 
 
-pub fn thaw () -> Option<Universe>{
+pub fn thaw (filename: Option<String>) -> Option<Universe>{
     //! Thaw a game.
     //!
     //! The .sst file type is as follows:
@@ -171,13 +175,36 @@ pub fn thaw () -> Option<Universe>{
     let mut save_file: File;
     let uni: Universe;
 
-    loop {
-        let temp = File::open(input("Save file: "));
+    let filename = match filename {
+        Some(v) => v,
+        None => String::new()
+    };
+
+    if filename.is_empty() {
+        loop {
+            let temp = File::open(input("Save file: "));
+            match temp {
+                Ok(p) => {save_file = p; break;},
+                Err(_) => {prout!("ERROR: Unable to find save file.\n"); continue;}
+            };
+        }
+    } else {
+        let temp = File::open(filename);
         match temp {
-            Ok(p) => {save_file = p; break;},
-            Err(_) => {prout!("Unable to find save file.\n"); continue;}
-        };
+            Ok(p) => save_file = p,
+            Err(_) => {
+                prout!("ERROR: Unable to find save file.\n");
+                loop {
+                    let temp = File::open(input("Save file: "));
+                    match temp {
+                        Ok(p) => {save_file = p; break;},
+                        Err(_) => {prout!("ERROR: Unable to find save file.\n"); continue;}
+                    };
+                }
+            }
+        }
     }
+    
 
     let pass = input("Password: ");
     let mut enc_data = String::new();
@@ -357,8 +384,8 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
     }
     else if tokens[0].clone() == "load" {
         return CommandType::Load(match tokens.len() {
-            1 => {input("Enter save file name > ")},
-            2 => tokens[1].clone(),
+            1 => Some(input("Enter save file name > ")),
+            2 => Some(tokens[1].clone()),
             _ => {
                 prout!("Invalid arguments.");
                 return CommandType::Error
@@ -406,33 +433,53 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
         return CommandType::Orbit;
     }
     else if abbrev(&tokens[0], "ph", "phasers") {
-        let mut total_energy: f32;
+        let total_energy: f32;
 
-        let mut mode: ControlMode = match &tokens[1] {
-            a if abbrev(&a, "a", "automatic") => {
-                ControlMode::Auto
-            },
-            m if abbrev(&m, "m", "manual") => {
-                ControlMode::Manual
-            },
-            n if is_numeric(&n) => {
-                ControlMode::Undefined
-            },
-            _ => {
-                prout!("[*Fire Control*] Pull the other one; it's got bells on.");
-                return CommandType::Error
-            }
-        };
-
-        if mode == ControlMode::Undefined {
-            mode = ControlMode::Auto;
-            total_energy = match tokens[1].parse::<f32>() {
-                Ok(i) => i,
-                Err(_) => {
-                    prout!("[*Fire Control*] Sir, I can't fire non-numeric amounts of energy.");
+        let mut mode: ControlMode;
+        if tokens.len() > 1 {
+            mode = match &tokens[1] {
+                a if abbrev(&a, "a", "automatic") => {
+                    ControlMode::Auto
+                },
+                m if abbrev(&m, "m", "manual") => {
+                    ControlMode::Manual
+                },
+                n if is_numeric(&n) => {
+                    ControlMode::Undefined
+                },
+                _ => {
+                    prout!("[*Fire Control*] Pull the other one; its got bells on.");
                     return CommandType::Error
                 }
             };
+        } else {
+            mode = ControlMode::Undefined;
+        }
+
+        if mode == ControlMode::Undefined {
+            mode = ControlMode::Auto;
+            if tokens.len() > 1{
+                total_energy = match tokens[1].parse::<f32>() {
+                    Ok(i) => i,
+                    Err(_) => {
+                        prout!("[*Fire Control*] Sir, I can't fire non-numeric amounts of energy.");
+                        return CommandType::Error
+                    }
+                };
+            } else {
+                let energy = input("How much energy would you like to fire?\n> ");
+                total_energy = match energy.parse::<f32>() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        prout!("[*Fire Control*] Sir, I can't fire non-numeric amounts of energy.");
+                        return CommandType::Error;
+                    }
+                };
+            }
+
+            let mut e: Vec<f32> = Vec::new();
+            e.push(total_energy);
+            return CommandType::Phasers(mode, e)
         } else {
             tokens.remove(0);
             tokens.remove(0);
@@ -443,6 +490,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
                     return CommandType::Error
                 }
             };
+
             return CommandType::Phasers(mode, tokens)
         }
     }
@@ -560,8 +608,8 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
         return CommandType::StarChart
     }
     else if abbrev(&tokens[0], "t", "torpedoes") || abbrev(&tokens[0], "pho", "photons") {
-        let mut to_fire: Option<u8> = None;
-        let mut directions: Vec<u8> = Vec::new();
+        let to_fire: Option<u8>;
+        let directions: Vec<u8>;
         
         match tokens.len() {
             1 => return CommandType::Torpedo(None, Vec::new()),
@@ -648,7 +696,7 @@ pub enum CommandType {
     Freeze(String),
     Help(String),
     Impulse(Option<f64>, Option<f64>),
-    Load(String),
+    Load(Option<String>),
     LrScan,
     Mine,
     Move(Option<f64>, Option<f64>),

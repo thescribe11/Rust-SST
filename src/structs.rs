@@ -2,7 +2,7 @@
 use rand::{Rng, random};
 use serde::{Serialize, Deserialize};
 use termion::color::{Blue, Fg, Green, Red, Reset};
-use crate::{constants::{DEBUG, ALGERON}, finish::DeathReason, io::{ControlMode, abbrev, get_args, get_yorn, input}, slow_prout};
+use crate::{constants::{DEBUG, ALGERON}, finish::DeathReason, io::{ControlMode, abbrev, get_args, get_yorn, input, SLOW}, slow_prout};
 use crate::prout;
 use crate::damage::Damage;
 
@@ -144,7 +144,7 @@ impl Universe {
     }
 
     pub fn is_quadrant_accessible (&self, vert: usize, horiz: usize) -> bool {
-        self.quadrants[vert][horiz].is_supernova.clone()
+        !self.quadrants[vert][horiz].is_supernova.clone()
     }
 
     pub fn sector (&self, loc: &usize) -> u8 {
@@ -169,13 +169,13 @@ impl Universe {
     }
 
     pub fn abandon_ship (&mut self) {
-        slow_prout("*AWHOOGAH*  *AWHOOGAH*");
-        slow_prout("This is your captain speaking. We are abandoning ship. Please make your way to the nearest escape pod.");
+        slow_prout("*AWHOOGAH*  *AWHOOGAH*", SLOW, true);
+        slow_prout("This is your captain speaking. We are abandoning ship. This is not a drill. Please make your way to the nearest escape pod at the first opportunity.", SLOW, true);
 
         if self.damage.shuttles == 0.0 {
             prout!("You and your core crew escape in the Enterprise's shuttles, and eventually make your way to a mothballed ship - the Faerie Queen.");
             if self.damage.transporter == 0.0 {
-                prout!("The Enterprise's remaining complement beam down to the nearest planet, where they are quickly captured.");
+                prout!("The Enterprise's remaining complement beam down to the nearest planet, where they are soon captured by Klingons.");
             } else {
                 prout!("Unable to escape the ship, your remaining crewmembers are killed.");
             }

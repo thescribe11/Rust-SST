@@ -32,7 +32,7 @@ mod weapons;
 mod defense;
 mod enums;
 
-use io::{input, freeze, thaw, CommandType, em_exit, get_yorn, slow_prout};
+use io::{input, freeze, thaw, CommandType, em_exit, get_yorn, slow_prout, SLOW};
 use rand::Rng;
 use structs::Universe;
 use finish::DeathReason;
@@ -46,7 +46,7 @@ fn main() {
 =======================\n");
     
     if input("Load from save file? (y/n) ").to_lowercase().starts_with("y") {
-        match thaw() {
+        match thaw(None) {
             Some(u) => {match mainloop(u) {
                 Ok(_) => {},
                 Err(error) => prout!("Fatal error: {}", error)
@@ -82,7 +82,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
     //! The game's main execution loop
     
     let mut upcoming_events: Vec<enums::Event> = Vec::new();
-    upcoming_events.push(Event::Supernova(1.0));  // rand::thread_rng().gen_range(1.5..9.0)
+    upcoming_events.push(Event::Supernova(rand::thread_rng().gen_range(1.5..9.0)));
 
     loop {
         match io::parse_args(input("\nCommad > ")) {
@@ -111,7 +111,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
             CommandType::Freeze(file) => freeze(&uni),
             CommandType::Help(what) => {},
             CommandType::Impulse(mode, deltas) => uni.move_it(true, mode, deltas),
-            CommandType::Load(file) => {},
+            CommandType::Load(file) => uni = thaw(file).unwrap(),  // TODO fix
             CommandType::LrScan => uni.lrscan(),
             CommandType::Mine => {},
             CommandType::Move(a, d) => uni.move_it(false, a, d),
@@ -186,15 +186,16 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
     prout!("\n\nThe stardate is {:.2}", uni.stardate);
     match uni.death_reason {
         DeathReason::Supernova => {
-            prout!("The Enterprise has been caught in a supernova, instantly frying the crew.");
+            prout!("The Enterprise has been caught in a supernova, destroying the ship and killing all aboard.");
+            prout!("With the Enterprise out of the way, the Klingons proceed to conquer the Federation.");
         },
         DeathReason::MaximumEntropy => {
             prout!("The Enterprise has experienced a warp core breach, resulting in its complete destruction.");
             prout!("With the Enterprise out of the way, the Klingons proceed to conquer the Federation.");
         },
         DeathReason::NegativeSpaceWedgie => {
-            prout!("The Enterprise's experimental deathray has created a rift in spacetime, through which stream mind-boggling... things with too many tentacles and too little respect for the laws of geometry and physics.");
-            prout!("Although most attempts to study them result in insanity, one thing is known for certain: whether through hostility or outright indifference, they see no problem with brutally killing any normal creatures they encounter.");
+            prout!("The Enterprise's experimental deathray has created a rift in spacetime, through which stream mind-boggling... things with too many tentacles and too little respect for the laws of physics.");
+            prout!("Although most attempts to study them result in insanity, one thing is known for certain: whether through hostility or outright indifference, they see no problem with brutally killing any \"normal\" creatures they encounter.");
         },
         DeathReason::Kaboom => {
             prout!("The Enterprise has been destroyed in honorable battle with enemy forces.");
@@ -206,21 +207,21 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
         },
         DeathReason::Tribble => {
             prout!("The Enterprise has been infested with Tribbles.");
-            prout!("Despite your attempts to destroy the cute vermin, they eat through the Enterprise's supplies.");
+            prout!("Despite your attempts to exterminate the cute vermin, they eat through the Enterprise's supplies.");
             prout!("You and your crew starve to death, leaving the Federation defenseless.");
         },
         DeathReason::Stranded => {
             prout!("The Enterprise is unable to retrieve you before leaving the system.");
             prout!("As a result, Spock (who had wisely stayed behind) takes command of the ship.");
-            prout!("He sides with the Romulans, and uses the Enterprise's immense firepower to help them conquer the galaxy.");
+            prout!("He defects to the Romulans, and uses the Enterprise's immense firepower to help them conquer the galaxy.");
         },
         DeathReason::TimeUp => {
             prout!("Your attempts to stop the invasion have failed.");
             if uni.klingons > 5 {
-                prout!("With no other options, the Federation onconditionally surrenders to the Klingon Empire.");
-                prout!("You and your crew are imprisoned as war criminals, and the Enterprise is repurposed as a garbage scow.");
+                prout!("With no other options, the Federation unconditionally surrenders to the Klingon Empire.");
+                prout!("You and your crew are executed as war criminals, and the Enterprise is repurposed as a garbage scow.");
             } else {
-                prout!("However, the terrible damage which you inflicted on their forces allows the Federation to negotiate a treaty which, while highly disadvantageous, leaves its sovereignty intact.");
+                prout!("However, the terrible carnage you inflicted upon their forces allows the Federation to negotiate a treaty which, while highly disadvantageous, leaves its sovereignty intact.");
             }
         },
         DeathReason::NoAir => {
@@ -237,7 +238,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
         },
         DeathReason::Transformation => {
             prout!("You and your crew have been mutated into strange abominations.");
-            prout!("Interestingly, Mr. Spock is unaffected. As a result, he kills you and sides with the Romulans, leading them in a conquest of the galaxy.");
+            prout!("Mr. Spock alone is unaffected. As a result, he kills you and defects to the Romulans, leading them in a conquest of the galaxy.");
         },
         DeathReason::Borg => {
             prout!("The Enterprise has been assimilated by the Borg. While they find your cranial capacity sub-par, your advanced technology sparks their interest.");
@@ -259,8 +260,8 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
             }
         },
         DeathReason::GalaxyEdge => {
-            slow_prout("Your repeated attempts to cross the negative energy barrier surrounding the galaxy have destroyed the Enterprise.");
-            slow_prout("Your navigation is abominable.");
+            slow_prout("Your repeated attempts to cross the negative energy barrier surrounding the galaxy have destroyed the Enterprise.", SLOW, true);
+            slow_prout("Your navigation is abominable.", SLOW, true);
         },
         _ => {}
     }
@@ -268,6 +269,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
     return Ok(())
 }
 
+#[allow(unused_imports)]
 mod tests {
     use rand::thread_rng;
 

@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
 use termion::terminal_size;
 
-use crate::{constants::DEBUG, io::{extra_slow_prout, get_yorn, input, slow_prout}};
+use crate::{constants::DEBUG, io::{get_yorn, input, slow_prout, SLOW, EXTRA_SLOW}};
 use rand::{Rng, thread_rng};
 
 
@@ -13,19 +13,19 @@ impl crate::Universe {
 
         if input("\nPassword: ") != self.password { return };
 
-        slow_prout("[*Computer*] Self-destruct in 10 seconds.");
-        print!(" "); extra_slow_prout('9');
-        print!("  "); extra_slow_prout('8');
-        print!("   "); extra_slow_prout('7');
-        print!("    "); extra_slow_prout('6');
-        print!("     "); extra_slow_prout('5');
-        print!("      "); extra_slow_prout('4');
-        print!("       "); extra_slow_prout('3');
-        print!("        "); extra_slow_prout('2');
-        print!("         "); extra_slow_prout('1');
+        slow_prout("[*Computer*] Self-destruct in 10 seconds.", SLOW, true);
+        print!(" "); slow_prout('9', EXTRA_SLOW, true);
+        print!("  "); slow_prout('8', EXTRA_SLOW, true);
+        print!("   "); slow_prout('7', EXTRA_SLOW, true);
+        print!("    "); slow_prout('6', EXTRA_SLOW, true);
+        print!("     "); slow_prout('5', EXTRA_SLOW, true);
+        print!("      "); slow_prout('4', EXTRA_SLOW, true);
+        print!("       "); slow_prout('3', EXTRA_SLOW, true);
+        print!("        "); slow_prout('2', EXTRA_SLOW, true);
+        print!("         "); slow_prout('1', EXTRA_SLOW, true);
 
         if DEBUG || thread_rng().gen_range(0..5) == 0 {
-            slow_prout("            Goodbye, cruel world!\n");
+            slow_prout("           Goodbye, cruel world!\n", SLOW, true);
         }
 
         let (width, half) = match terminal_size() {  // Terminal width, half the terminal width accounting for some text
@@ -47,9 +47,9 @@ impl crate::Universe {
             boom_string.push('*');
         }
 
-        slow_prout(&star_string);
-        slow_prout(&boom_string);
-        slow_prout(&star_string);
+        slow_prout(&star_string, SLOW, true);
+        slow_prout(&boom_string, SLOW, true);
+        slow_prout(&star_string, SLOW, true);
 
         self.death_reason = DeathReason::SelfDestruct;
 

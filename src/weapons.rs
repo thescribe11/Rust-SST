@@ -1,8 +1,9 @@
 use rand::{random, thread_rng, Rng};
 use termion::color::{Fg, Red, Reset};
+use crate::io::wait;
 use crate::prout;
 
-use crate::{finish::DeathReason, input, io::{extra_slow_prout, get_args, get_yorn, slow_prout}, structs::EntityType};
+use crate::{finish::DeathReason, input, io::{slow_prout, get_args, get_yorn, SLOW}, structs::EntityType};
 
 impl crate::structs::Universe {
     pub fn torpedo (&mut self, num: Option<u8>, deltas: Vec<u8>) {
@@ -78,6 +79,7 @@ impl crate::structs::Universe {
         for delta in solution {
             torp_num += 1;
             let mut torp_loc: i8 = self.sloc as i8;
+            self.torpedoes -= 1;
             print!("\nTrack for torpedo #{}: ", &torp_num);
 
             // Simulate torpedo
@@ -188,17 +190,17 @@ impl crate::structs::Universe {
         }
 
         prout!("[*Mr. Spock*] As you wish.\n");
-        slow_prout("WHOOee ... WHOOee ... WHOOee ... WHOOee");
+        slow_prout("WHOOee ... WHOOee ... WHOOee ... WHOOee", SLOW, true);
         prout!("The crew scrambles in emergency preparation.");
         prout!("Spock and Scotty ready the deathray and prepare to channel all the ship's power to the device.");
         
         prout!("[*Mr. Spock*] Preparations are complete, captain.");
         prout!("[*Cpt. Kirk*] Fire!");
 
-        slow_prout("WHIRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR");
+        slow_prout("WHIRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR", SLOW, true);
         match thread_rng().gen_range(0..16) {
             0..=10 => {
-                slow_prout("[*Mr. Sulu*] Captain, it's working!");
+                slow_prout("[*Mr. Sulu*] Captain, it's working!", SLOW, true);
                 for entity in self.get_quadrant().entities {
                     match entity.0 {
                         EntityType::Star => continue,
@@ -218,20 +220,20 @@ impl crate::structs::Universe {
             },
             11 | 12 => {
                 print!("[*Mr. Sulu*]");
-                slow_prout("Captain, it's working!");
-                extra_slow_prout("    ");
+                slow_prout("Captain, it's working!", SLOW, true);
+                wait(4);
 
                 print!("{}", Fg(Red));
-                slow_prout("***RED ALERT! RED ALERT!***");
-                slow_prout("***WARP CORE BREACH IMMINENT!***");
-                slow_prout("***RED ALERT! RED A*L********************************");
+                slow_prout("***RED ALERT! RED ALERT!***", SLOW, true);
+                slow_prout("***WARP CORE BREACH IMMINENT!***", SLOW, true);
+                slow_prout("***RED ALERT! RED A*L********************************", SLOW, true);
                 prout!("*********************** BOOOM ***********************");
                 prout!("*****************************************************");
                 print!("{}", Fg(Reset));
                 self.die(DeathReason::MaximumEntropy)
             },
             13 => {
-                slow_prout("[*Mr. Sulu*] Captain, Yagsdsadfagag, brascscha!\n");
+                slow_prout("[*Mr. Sulu*] Captain, Yagsdsadfagag, brascscha!\n", SLOW, true);
                 prout!("[*Lt. Uhura*] Graeeek! Graeeek!\n");
                 prout!("[*Mr. Spock*] Fascinating! It would seem that all the humans aboard have been transformed into strange mutations.");
                 prout!("[*Mr. Spock*] Thankfully, Vulcans do not appear to be affected.\n");
@@ -239,20 +241,22 @@ impl crate::structs::Universe {
                 self.die(DeathReason::Transformation);
             },
             14 => {
-                slow_prout("[*Mr. Sulu*] Captain, it's working!");
-                extra_slow_prout("    \n");
-                slow_prout("[*Mr. Spock*] Captain, I am getting some illogical sensor readings.");
-                slow_prout("[Cont.] There appears to be a wormhole nearby, but that's impossible; the starcharts do not show any in this area.");
-                slow_prout("[Cont.] Interesting... there appears to be a massive cube-shaped ship coming through it.");
-                slow_prout("[*Mr. Sulu*] Look at the size of that thing!");
+                slow_prout("[*Mr. Sulu*] Captain, it's working!", SLOW, true);
+                wait(5);
+                prout!();
+                slow_prout("[*Mr. Spock*] Captain, I am getting some illogical sensor readings.", SLOW, true);
+                slow_prout("[Cont.] There appears to be a wormhole nearby, but that's impossible; the starcharts do not show any in this area.", SLOW, true);
+                slow_prout("[Cont.] Interesting... there appears to be a massive cube-shaped ship coming through it.", SLOW, true);
+                slow_prout("[*Mr. Sulu*] Look at the size of that thing!", SLOW, true);
 
-                extra_slow_prout("      ");
-                slow_prout("[*Lt. Uhura*] Captain, it's hailing us.");
-                slow_prout("*click* We are the Borg. Lower your shields and surrender your ship. Your biological and technological distinctiveness will be added to our own. Your culture will adapt to service us. Resistance is futile");
+                wait(7);
+                prout!();
+                slow_prout("[*Lt. Uhura*] Captain, it's hailing us.", SLOW, true);
+                slow_prout("*click* We are the Borg. Lower your shields and surrender your ship. Your biological and technological distinctiveness will be added to our own. Your culture will adapt to service us. Resistance is futile", SLOW, true);
                 self.die(DeathReason::Borg);
             },
             15 => {
-                slow_prout("[*Mr. Sulu*] Um... Captain, it appears to be making tribbles?");
+                slow_prout("[*Mr. Sulu*] Um... Captain, it appears to be making tribbles?", SLOW, true);
                 self.die(DeathReason::Tribble);
             },
             _ => {

@@ -1,6 +1,6 @@
 use rand::{Rng, thread_rng};
 use rand::prelude::SliceRandom;
-use crate::io::{extra_slow_prout, get_args, get_yorn, slow_prout};
+use crate::io::{get_args, get_yorn, slow_prout, SLOW, EXTRA_SLOW};
 use crate::finish::DeathReason;
 use crate::{prout};
 use crate::{input, io::abbrev};
@@ -52,7 +52,7 @@ impl crate::structs::Universe {
             true => dv,
             false => dh
         }.abs();
-        dv /= bigger; dh /= bigger;  // This introduces some errors, but they're insignificant.
+        dv /= bigger; dh /= bigger;  // This introduces some inaccuracies, but they're insignificant.
         
         let distance = match distance {
             Some(x) => x,
@@ -71,6 +71,10 @@ impl crate::structs::Universe {
                 }
             }
         };
+        if distance < 1.0 {
+            prout!("[*Helm*] Sir, that's an invalid distance.");
+            return;
+        }
 
         let power = match use_impulse {
             false => 1.05 * self.warp_factor.powi(2) * (self.shield_status as u8 + 1) as f64 * (distance * bigger).round(),  // Shamelessly lifted from the Almy version
@@ -141,7 +145,7 @@ impl crate::structs::Universe {
                }
             }
 
-            // Check to make sure that the player hasn't run out of time or gas.
+            // Check if the player has run out of time or gas.
             if self.time_remaining <= 0.0 {
                 self.death_reason = DeathReason::TimeUp;
                 break;
@@ -221,12 +225,12 @@ impl crate::structs::Universe {
                     },
                     5 => {  // Black hole
                         interrupted = true;
-                        slow_prout("\n***RED ALERT! RED ALERT!***");
-                        slow_prout("\nThe Enterprise is pulled into a black hole, crushing it like a tin can.");
+                        slow_prout("\n***RED ALERT! RED ALERT!***", SLOW, true);
+                        slow_prout("\nThe Enterprise is pulled into a black hole, crushing it like a tin can.", SLOW, true);
                         self.die(DeathReason::EventHorizon);
                     },
                     _ => {
-                        panic!("AAAAAAH! Something unexpected occured!")
+                        panic!("AAAAAAH! Something unexpected happened while checking for collisions!")
                     }
                 }
             }
@@ -278,10 +282,10 @@ impl crate::structs::Universe {
             prout!("\n[*Lt. Uhura*] Captain, a Romulan ship is hailing us. I'll put it on audio.");
             if self.ididit {
                 // The Romulans are royally pissed; skip the pleasantries.
-                slow_prout("*click* DIE, TREACHEROUS HUMAN SCUM!!!");
+                slow_prout("*click* DIE, TREACHEROUS HUMAN SCUM!!!", SLOW, true);
             } else {
                 // Courteously threaten to destroy the Enterprise.
-                slow_prout("*click* Captain, I'm afraid you're violating the Romulan Neutral Zone. Please leave, lest your situation become... terminally unpleasant.");
+                slow_prout("*click* Captain, I'm afraid you're violating the Romulan Neutral Zone. Please leave, lest your situation become... terminally unpleasant.", SLOW, true);
             }
         }
     }
@@ -303,10 +307,10 @@ impl crate::structs::Universe {
             prout!("\n[*Lt. Uhura*] Captain, a Romulan ship is hailing us. I'll put it on audio.");
             if self.ididit {
                 // The Romulans are royally pissed; skip the pleasantries.
-                slow_prout("*click* DIE, TREACHEROUS HUMAN SCUM!!!");
+                slow_prout("*click* DIE, TREACHEROUS HUMAN SCUM!!!", SLOW, true);
             } else {
                 // Courteously threaten to destroy the Enterprise.
-                slow_prout("*click* Captain, I'm afraid you're violating the Romulan Neutral Zone. Please leave, lest your situation become... terminally unpleasant.");
+                slow_prout("*click* Captain, I'm afraid you're violating the Romulan Neutral Zone. Please leave, lest your situation become... terminally unpleasant.", SLOW, true);
             }
         }
     }
@@ -340,7 +344,7 @@ impl crate::structs::Universe {
     #[allow(non_snake_case)]
     pub fn NOPE (&mut self) {
         if self.leave_attempts < 2 {
-            slow_prout("\nYOU HAVE ATTEMPTED TO CROSS THE NEGATIVE ENERGY BARRIER AT THE EDGE OF THE GALAXY.\nTHE THIRD TIME YOU TRY TO DO THIS YOU WILL BE DESTROYED.");
+            slow_prout("\nYOU HAVE ATTEMPTED TO CROSS THE NEGATIVE ENERGY BARRIER AT THE EDGE OF THE GALAXY.\nTHE THIRD TIME YOU TRY TO DO THIS YOU WILL BE DESTROYED.", SLOW, true);
             self.leave_attempts += 1;
         } else {
             self.alive = false;
@@ -417,14 +421,14 @@ impl crate::structs::Universe {
             prout!("[*Lt. Uhura*] Captain, the subspace radio is inoperable.");
             return;
         } else if self.starbases == 0 {
-            slow_prout("[*Lt. Uhura*] I'm sorry captain... nobody's responding to our distress calls.");
+            slow_prout("[*Lt. Uhura*] I'm sorry captain... nobody's responding to our distress calls.", SLOW, true);
             return;
         }
         let available = self.get_starbases();  // Since the compiler complains about temporary values otherwise
         let selected = match available.choose(&mut rand::thread_rng()) {
             Some(s) => s,
             None => {
-                slow_prout("[*Lt. Uhura*] I'm sorry captain... nobody's responding to our distress calls.");
+                slow_prout("[*Lt. Uhura*] I'm sorry captain... nobody's responding to our distress calls.", SLOW, true);
                 return;
             }
         };
@@ -448,7 +452,7 @@ impl crate::structs::Universe {
         self.sloc = match unoccupied.choose(&mut rand::thread_rng()) {
             Some(s) => *s,
             None => {
-                slow_prout("[*Lt. Uhura*] Captain, one of the starbases got our distress call, but it doesn't have any open births.");
+                slow_prout("[*Lt. Uhura*] Captain, a starbase received our distress call. The base commandant sends his condolences; he doesn't have any open births.", SLOW, true);
                 return;
             }
         };
@@ -460,13 +464,13 @@ impl crate::structs::Universe {
     pub fn emergency_jump (&mut self) {
         //! Attempt to get away from a supernova.
 
-        slow_prout("**AWHOOGAH**   **AWHOOGAH**");
-        slow_prout("[*Comp.*] SUPERNOVA DETECTED");
-        slow_prout("[*Comp.*] ENGAGING EMERGENCY ENGINE OVERRIDE");
+        slow_prout("**AWHOOGAH**   **AWHOOGAH**", SLOW, true);
+        slow_prout("[*Comp.*] SUPERNOVA DETECTED", SLOW, true);
+        slow_prout("[*Comp.*] ENGAGING EMERGENCY ENGINE OVERRIDE", SLOW, true);
+        slow_prout("  ", EXTRA_SLOW, true);
 
         if self.damage.computer > 0.15 {
-            extra_slow_prout("  ");
-            slow_prout("[*Comp.*] !ERROR!: CONTROL INTERLINKS INOPERABLE!                      ");
+            slow_prout("[*Comp.*] !ERROR!: CONTROL INTERLINKS INOPERABLE!                      ", SLOW, true);
             prout!("******************* BOOM *******************");
             self.die(DeathReason::Supernova);
             return;
@@ -483,7 +487,13 @@ impl crate::structs::Universe {
           || chosen_horiz < 0 || chosen_horiz > 7 
           || randint.gen::<f32>() < 0.2 
           || !self.is_quadrant_accessible(chosen_vert as usize, chosen_horiz as usize){
-            slow_prout("[*Comp.*] OVERRIDE FAILED. SO LONG, AND THANKS FOR ALL THE FISH.                      ");
+            slow_prout("[*Comp.*] OVERRIDE FAILED.", SLOW, false);
+
+            if crate::DEBUG || randint.gen_range(0..5) == 0 {  // Continuing the self-aware computer joke
+                slow_prout(" SO LONG, AND THANKS FOR ALL THE FISH.", SLOW, false);
+            }
+
+            slow_prout("       ", EXTRA_SLOW, true);  // Give the player some time to consider things
             prout!("******************* BOOM *******************");
             self.die(DeathReason::Supernova);
             return;

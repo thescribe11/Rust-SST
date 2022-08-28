@@ -2,6 +2,7 @@
 name = "super-star-trek"
 version = "0.1.1"
 edition = "2018"
+authors = ["TheScribe11 <thescribe11@gmail.com>"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
