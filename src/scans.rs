@@ -1,5 +1,5 @@
 use crate::structs::{EntityType, Alert};
-use termion::color::{Blue, Fg, Green, Red, Reset};
+use termion::color::{Blue, Fg, Green, Red, Reset, Yellow};
 
 
 impl crate::structs::Universe {
@@ -132,8 +132,21 @@ impl crate::structs::Universe {
                 else if self.quadrants[i as usize][j as usize].is_supernova {  // Supernova
                     print!(" 1000")
                 } else {  // Regular quadrant
-                    let (x, y, z) = self.quadrants[i as usize][j as usize].poll_lrscan();
-                    print!("  {}{}{}", x, y, z);
+                    let (k, b, s) = self.quadrants[i as usize][j as usize].poll_lrscan();
+                    print!("  ");
+                    if k > 0 {
+                        print!("{}{}{}", Fg(Red), k, Fg(Reset));
+                    } else {
+                        print!("{}{}{}", Fg(Green), k, Fg(Reset));
+                    }
+
+                    if b > 0 {
+                        print!("{}{}{}", Fg(Blue), b, Fg(Reset));
+                    } else {
+                        print!("{}", b);
+                    }
+
+                    print!("{}", s);
                 }
                 self.charted[i as usize][j as usize] = true;
             }
@@ -152,9 +165,22 @@ impl crate::structs::Universe {
             for horiz in 0..8 {
                 if self.charted[vert][horiz] {
                     let (k,b,s) = self.quadrants[vert][horiz].poll_lrscan();
-                    print!("{}{}{} ", k, b, s);
+
+                    if k > 0 {
+                        print!("{}{}{}", Fg(Red), k, Fg(Reset));
+                    } else {
+                        print!("{}{}{}", Fg(Green), k, Fg(Reset));
+                    }
+
+                    if b > 0 {
+                        print!("{}{}{}", Fg(Blue), b, Fg(Reset));
+                    } else {
+                        print!("{}", b);
+                    }
+
+                    print!("{} ", s);
                 } else {
-                    print!("??? ");
+                    print!("{}???{} ", Fg(Yellow), Fg(Reset));
                 }
             }
 
