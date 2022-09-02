@@ -232,8 +232,12 @@ pub fn thaw (filename: Option<String>) -> Option<Universe>{
     return Some(uni)
 }
 
-pub fn freeze (uni: &Universe) {
-    let mut file = match File::create(input("Filename: ")) {
+pub fn freeze (filename: Option<String>, uni: &Universe) {
+    let filename = match filename {
+        Some(v) => v,
+        None => input("Filename: ")
+    };
+    let mut file = match File::create(&filename) {
         Ok(f) => f,
         Err(e) => {
             if DEBUG { prout!("{}", e) }
@@ -246,7 +250,8 @@ pub fn freeze (uni: &Universe) {
         Ok(_) => {},
         Err(_) => prout!("I'm sorry, but that file cannot be written to.")
     }
-        
+    
+    prout!("Game back-up created in {}", filename);
 }
 
 
@@ -334,8 +339,8 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
     }
     else if abbrev(&tokens[0], "fr", "freeze") {
         match tokens.len() {
-            1 => return CommandType::Freeze(String::new()),
-            2 => return CommandType::Freeze(tokens[1].clone()),
+            1 => return CommandType::Freeze(None),
+            2 => return CommandType::Freeze(Some(tokens[1].clone())),
             _ => {
                 prout!("Huh?");
                 return CommandType::Error
@@ -672,6 +677,21 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
             })
         }
     }
+    else if tokens[0] == "debug" {
+        if !crate::DEBUG {  // This command is only available in debug builds
+            prout!("I'm sorry, but this command is only available in DEBUG builds.");
+            return CommandType::Error
+        }
+
+        match tokens.len() {
+            2 => {
+                return CommandType::Debug(tokens[1].clone());
+            },
+            _ => {
+                return CommandType::Debug(String::from("invalid"))
+            }
+        }
+    }
 
     // At this point we can assume that it isn't a valid command
     prout!("[*Mr. Spock*] Captain, that is not a valid command.");
@@ -693,7 +713,7 @@ pub enum CommandType {
     Dock,
     EmExit,
     Error,
-    Freeze(String),
+    Freeze(Option<String>),
     Help(String),
     Impulse(Option<f64>, Option<f64>),
     Load(Option<String>),
@@ -716,7 +736,8 @@ pub enum CommandType {
     StarChart,
     Torpedo(Option<u8>, Vec<u8>),
     Transporter(u8),
-    Warp(f64)
+    Warp(f64),
+    Debug(String),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

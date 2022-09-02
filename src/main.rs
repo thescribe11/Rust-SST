@@ -55,7 +55,7 @@ fn main() {
         }
     } else {
         let password = input("Password (used for self-destruct and save-file encryption: ");
-        let mut difficulty: u8;
+        let difficulty: u8;
         loop {
             match input("Difficulty (1=easy, 2=normal, 3=hard, 4=emeritus): ").as_str().parse::<u8>() {
                 Err(_) => {prout!("Invalid difficulty."); continue},
@@ -82,9 +82,11 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
     //! The game's main execution loop
     
     let mut upcoming_events: Vec<enums::Event> = Vec::new();
-    upcoming_events.push(Event::Supernova(rand::thread_rng().gen_range(1.5..9.0)));
+    upcoming_events.push(Event::Supernova(0.0));  // rand::thread_rng().gen_range(1.5..9.0)
+    let mut last_time: f64;
 
     loop {
+        last_time = uni.stardate;
         match io::parse_args(input("\nCommad > ")) {
             CommandType::Abandon => {
                 if get_yorn("Are you sure you want to abandon ship? ") {
@@ -108,7 +110,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
                 return Ok(())
             },
             CommandType::Error => continue,
-            CommandType::Freeze(file) => freeze(&uni),
+            CommandType::Freeze(file) => freeze(file, &uni),
             CommandType::Help(what) => {},
             CommandType::Impulse(mode, deltas) => uni.move_it(true, mode, deltas),
             CommandType::Load(file) => uni = thaw(file).unwrap(),  // TODO fix
@@ -135,6 +137,16 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
             CommandType::Torpedo(num, deltas) => uni.torpedo(num, deltas),
             CommandType::Transporter(qubit) => {},
             CommandType::Warp(factor) => uni.change_warp(factor),
+            CommandType::Debug(req) => {
+                if &req == "invalid" {
+                    prout!("ERROR: Improper usage.");
+                    prout!("\nSyntax: DEBUG argument");
+                    prout!("Supported arguments: events")
+                }
+                if &req == "events" {
+                    prout!("Event stack: {:#?}", &upcoming_events);
+                }
+            }
         }
 
         if uni.klingons == 0 {
@@ -147,38 +159,60 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
 
         if uni.death_reason != DeathReason::None { break; }
 
-        for e in upcoming_events.clone() {
-            match e {
-                Event::TractorBeam(t) => {
-                    if uni.stardate >= t {
-                        todo!()
-                    }
-                },
-                Event::Supernova(t) => {
-                    if uni.stardate >= t {
-                        let mut randint = rand::thread_rng();
-                        loop {
-                            let v: usize = randint.gen_range(0..8);
-                            let h: usize = randint.gen_range(0..8);
+        if uni.stardate != last_time {  // Don't bother checking if no time has elapsed
+            let mut sub_event = false;
+            let mut e = 0;
+            while e < upcoming_events.len() {
+                match upcoming_events[e] {
+                    Event::StarbaseAttack(t, loc) => {
+                        if uni.stardate >= t {
 
-                            if !uni.get_other_quadrant(&v, &h).is_supernova {
-                                uni.quadrants[v][h].is_supernova = true;
-                                if (uni.qvert, uni.qhoriz) == (v, h) {
-                                    uni.emergency_jump();
-                                }
-                                break;
+                        }
+                    },
+                    Event::StarbaseDestroy(t, loc) => {
+                        if uni.stardate >= t {
+                            if uni.quadrants[loc.0][loc.1].starbase_threatened() {
+                                uni.kill_starbase(loc);
+                            } else {
+                                upcoming_events.remove(e.clone());
+                                sub_event = true;
                             }
                         }
-                    }
+                    },
+                    Event::TractorBeam(t) => {
+                        if uni.stardate >= t {
+                            upcoming_events.remove(e.clone());
+                            sub_event = true;
+                            todo!()
+                        }
+                    },
+                    Event::Supernova(t) => {
+                        if uni.stardate >= t {
+                            let mut randint = rand::thread_rng();
+                            loop {
+                                let v: usize = randint.gen_range(0..8);
+                                let h: usize = randint.gen_range(0..8);
 
-                    match upcoming_events.iter().position(|x| *x==e) {
-                        Some(x) => {upcoming_events.remove(x);},
-                        None => {},
-                    };
+                                if !uni.get_other_quadrant(&v, &h).is_supernova {
+                                    uni.quadrants[v][h].is_supernova = true;
+                                    if (uni.qvert, uni.qhoriz) == (v, h) {
+                                        uni.emergency_jump();
+                                    }
+                                    break;
+                                }
+                            }
 
-                    upcoming_events.push(Event::Supernova(rand::thread_rng().gen_range(1.5..9.0)));
-                },
-                Event::None => {},
+                            upcoming_events.remove(e.clone());
+                            sub_event = true;
+                            let t = uni.stardate;
+                            upcoming_events.push(Event::Supernova(rand::thread_rng().gen_range(t+3.0..t+9.0)));
+                        }
+                    },
+                }
+                if sub_event && e > 0 {
+                    e -= 1;
+                }
+                e += 1;
             }
         }
     }

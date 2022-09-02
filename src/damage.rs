@@ -1,5 +1,6 @@
 use serde::{Serialize, Deserialize};
 use rand::{Rng, thread_rng};
+use termion::color::{Fg, Green, Reset, Red};
 
 
 /// Keeps track of damage.
@@ -77,23 +78,23 @@ impl Damage {
 * Long-Range Sensors:    {}
 * Short-Range Sensors:   {}
 * Cloaking Device:       {}
-* Computer:              {}", 
-    self.reactors, 
-    self.life_support, 
-    self.warp_drive, 
-    self.impulse_drive,
-    self.shields,
-    self.phasers, 
-    self.torpedoes, 
-    self.tractors, 
-    self.deathray, 
-    self.radio, 
-    self.transporter, 
-    self.shuttles,
-    self.lrsensors,
-    self.srsensors,
-    self.cloak,
-    self.computer,
+* Computer:              {}",
+    form(self.reactors), 
+    form(self.life_support), 
+    form(self.warp_drive), 
+    form(self.impulse_drive),
+    form(self.shields),
+    form(self.phasers), 
+    form(self.torpedoes), 
+    form(self.tractors), 
+    form(self.deathray), 
+    form(self.radio), 
+    form(self.transporter), 
+    form(self.shuttles),
+    form(self.lrsensors),
+    form(self.srsensors),
+    form(self.cloak),
+    form(self.computer),
         )
     }
 
@@ -143,5 +144,14 @@ impl Damage {
         if self.cloak < 0.0 { self.cloak = 0.0 };
         if self.shields < 0.0 { self.shields = 0.0 };
         if self.computer < 0.0 { self.computer = 0.0 };
+    }
+}
+
+
+fn form (item: f64) -> String {
+    if item == 0.0 {
+        format!("{}Operational{}", Fg(Green), Fg(Reset))
+    } else {
+        format!("{}{}{}", Fg(Red), item, Fg(Reset))
     }
 }

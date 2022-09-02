@@ -1,5 +1,5 @@
 use crate::structs::{EntityType, Alert};
-use termion::color::{Blue, Fg, Green, Red, Reset, Yellow};
+use termion::color::{Blue, Fg, Green, Red, Reset, Yellow, LightBlue};
 
 
 impl crate::structs::Universe {
@@ -65,7 +65,13 @@ impl crate::structs::Universe {
                         5 => String::from(" "),
                         6 => format!("{}t{}", Fg(Red), Fg(Reset)),
                         7 => format!("{}?{}", Fg(Green), Fg(Reset)),
-                        8 => format!("{}E{}", Fg(Blue), Fg(Reset)),
+                        8 => {
+                            if self.cloaked {
+                                format!("{}E{}", Fg(LightBlue), Fg(Reset))
+                            } else {
+                                format!("{}E{}", Fg(Blue), Fg(Reset))
+                            }
+                        },
                         _ => panic!("It appears that the program has managed to put an impossible value in the sector srscan table. Please contact the developer with a bug report.")
                     });
                 } else {
@@ -80,11 +86,11 @@ impl crate::structs::Universe {
             match vert {
                 0 => println!(" Stardate:      {:.2}", self.stardate),
                 1 => println!(" Condition:     {}{}", match self.alert() {
-                    Alert::Red => "RED",
-                    Alert::Yellow => "Yellow",
-                    Alert::Green => "Green",
+                    Alert::Red => format!("{}RED{}", Fg(Red), Fg(Reset)),
+                    Alert::Yellow => format!("{}Yellow{}", Fg(Yellow), Fg(Reset)),
+                    Alert::Green => format!("{}Green{}", Fg(Green), Fg(Reset)),
                 }, match self.cloaked {
-                    true => "; cloaked.",
+                    true => "; cloaked",
                     false => "",
                 }),
                 2 => println!(" Position:      Sector {} {} of quadrant {} {}", self.sloc/10+1, self.sloc%10+1, &self.qvert+1, &self.qhoriz+1),

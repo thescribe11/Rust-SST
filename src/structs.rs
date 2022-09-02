@@ -1,8 +1,7 @@
 //! Contains all the various data structs used by the program.
-use rand::{Rng, random};
+use rand::Rng;
 use serde::{Serialize, Deserialize};
-use termion::color::{Blue, Fg, Green, Red, Reset};
-use crate::{constants::{DEBUG, ALGERON}, finish::DeathReason, io::{ControlMode, abbrev, get_args, get_yorn, input, SLOW}, slow_prout};
+use crate::{finish::DeathReason, io::SLOW, slow_prout};
 use crate::prout;
 use crate::damage::Damage;
 
@@ -139,8 +138,12 @@ impl Universe {
         locs
     }
 
-    pub fn kill_starbase (&mut self) {
-        self.starbases -= 1;
+    pub fn kill_starbase (&mut self, loc: (usize, usize)) {
+        if self.quadrants[loc.0][loc.1].starbase_threatened() {
+            self.starbases -= 1;
+            self.quadrants[loc.0][loc.1].kill_starbase();
+            self.score.kill_starbase();
+        }
     }
 
     pub fn is_quadrant_accessible (&self, vert: usize, horiz: usize) -> bool {
@@ -170,7 +173,9 @@ impl Universe {
 
     pub fn abandon_ship (&mut self) {
         slow_prout("*AWHOOGAH*  *AWHOOGAH*", SLOW, true);
-        slow_prout("This is your captain speaking. We are abandoning ship. This is not a drill. Please make your way to the nearest escape pod at the first opportunity.", SLOW, true);
+        slow_prout("This is your captain speaking. We are abandoning ship. This is not a drill. Please make your way to the nearest escape pod at the first opportunity.\n", SLOW, true);
+
+        
 
         if self.damage.shuttles == 0.0 {
             prout!("You and your core crew escape in the Enterprise's shuttles, and eventually make your way to a mothballed ship - the Faerie Queen.");
@@ -416,6 +421,30 @@ impl Quadrant {
                     false
                 }  
             }
+        }
+    }
+
+    pub fn has_starbase (&self) -> bool {
+        self.starbases > 0
+    }
+
+    pub fn kill_starbase (&mut self) {
+        todo!()
+    }
+
+    pub fn starbase_threatened (&self) -> bool {
+        //! Check if the local starbase is threatened by the encroaching Klingons
+        //! 
+        //! In other words: Is there a starbase here? If so, are there any Klingons around?
+
+        if !self.has_starbase() {   // Klingons can't attack a nonexistent starbase
+            return false;
+        }
+
+        if self.klingons > 0 {
+            return true
+        } else {
+            return false
         }
     }
 }
