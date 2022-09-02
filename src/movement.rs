@@ -72,7 +72,7 @@ impl crate::structs::Universe {
             }
         };
         if distance < 1.0 {
-            prout!("[*Helm*] Sir, that's an invalid distance.");
+            prout!("[*Helm*] Sir, we can't move that short of a distance.");
             return;
         }
 
