@@ -2,7 +2,6 @@
 The main file, containing the main function and the game loop.
 
 STYLE GUIDE:
-The class representing the Enterprise is always referred to as `ent`.
 The class representing the universe is always referred to as `uni`.
 Opening curly brackets are always on the same line, e.g. `if x {`.
 Always have a space between each section of a function declaration, e.g. `fn foobar <'a> (args) -> return {`.
@@ -19,6 +18,8 @@ deathray.rs - logic for the experimental deathray
 
 // NOTE: This must be ran with the Nightly compiler.
 #![feature(allow_internal_unstable)]
+
+extern crate supports_unicode;
 
 mod structs;
 mod io;
@@ -81,9 +82,15 @@ fn main() {
 fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
     //! The game's main execution loop
     
+    let mut randint = rand::thread_rng();
+
     let mut upcoming_events: Vec<enums::Event> = Vec::new();
-    upcoming_events.push(Event::Supernova(0.0));  // rand::thread_rng().gen_range(1.5..9.0)
+    upcoming_events.push(Event::Supernova(randint.gen_range(uni.stardate+1.5..uni.stardate+9.0)));
+    if uni.get_difficulty() > 1 {
+        upcoming_events.extend_from_slice(events::gen_starbase_attack(&uni).as_ref())  // TODO: Make `when` a random value once done testing.
+    }
     let mut last_time: f64;
+    let mut did_something: bool = false;  // Determines whether enemies attack. Necessary since scans etc. are a no-cost action.
 
     loop {
         last_time = uni.stardate;
@@ -97,55 +104,74 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
                 }
             },
             CommandType::CallStarbase => uni.call(),
-            CommandType::Capture => {},
+            CommandType::Capture => {},  // TODO add capturing Klingons
             CommandType::Cloak(yorn) => uni.cloak(yorn),
-            CommandType::Commands => {},
-            CommandType::Computer => {},
+            CommandType::Commands => {},  // TODO add commands list printout
+            CommandType::Computer => {},  // TODO add ship's computer
             CommandType::Damage => uni.damage.print_damage(),
-            CommandType::DeathRay => uni.deathray(),
+            CommandType::DeathRay => {
+                if uni.deathray() {
+                    did_something = true;
+                }
+            },
+            CommandType::Debug(req) => {
+                if &req == "events" {
+                    prout!("Event stack: {:#?}", &upcoming_events);
+                }
+                if &req == "damage" {
+                    simulate_damage(&mut uni);
+                }
+                else {
+                    prout!("ERROR: Improper usage.");
+                    prout!("\nSyntax: DEBUG argument");
+                    prout!("Supported arguments: events")
+                }
+            }
             CommandType::Destruct => uni.self_destruct(),
-            CommandType::Dock => {},
+            CommandType::Dock => {},  // TODO add starbase docking
             CommandType::EmExit => {
                 em_exit(uni);
                 return Ok(())
             },
             CommandType::Error => continue,
             CommandType::Freeze(file) => freeze(file, &uni),
-            CommandType::Help(what) => {},
-            CommandType::Impulse(mode, deltas) => uni.move_it(true, mode, deltas),
-            CommandType::Load(file) => uni = thaw(file).unwrap(),  // TODO fix
+            CommandType::Help(what) => {},  // TODO add help messages
+            CommandType::Impulse(mode, deltas) => {
+                uni.move_it(true, mode, deltas);
+                did_something = true;
+            },
+            CommandType::Thaw(file) => uni = thaw(file).unwrap(),  // TODO fix
             CommandType::LrScan => uni.lrscan(),
-            CommandType::Mine => {},
+            CommandType::Mine => {},  // TODO add dilithium crystal mining
             CommandType::Move(a, d) => uni.move_it(false, a, d),
-            CommandType::Orbit => {},
-            CommandType::Phasers(mode, targets) => {},
+            CommandType::Orbit => {},  // TODO add planet orbiting
+            CommandType::Phasers(mode, energy) => {
+                uni.phasers(mode, energy as f64);
+                did_something = true;
+            },
             CommandType::PlanetReport => {},
             CommandType::Probe(yorn, mode, deltas) => {},
             CommandType::Quit => {
                 prout!("\nGoodbye.\n");
                 return Ok(())
             },
-            CommandType::Report => {},
-            CommandType::Request(what) => {},
+            CommandType::Report => {},  // TODO add status reports
+            CommandType::Request(what) => {},  // TODO add requests? I don't remember what this is.
             CommandType::Rest(duration) => uni.rest(duration),
             CommandType::Score => uni.score.print_score(),
-            CommandType::SensorScan => {},
+            CommandType::SensorScan => {},  // TODO add planet scan
             CommandType::Shields(mode, amount) => uni.shields(mode, amount),
-            CommandType::Shuttle => {},
+            CommandType::Shuttle => {},  // TODO add shuttles
             CommandType::SrScan => uni.srscan(),
             CommandType::StarChart => uni.starchart(),
             CommandType::Torpedo(num, deltas) => uni.torpedo(num, deltas),
-            CommandType::Transporter(qubit) => {},
+            CommandType::Transporter(qubit) => {},  // TODO add transporters
             CommandType::Warp(factor) => uni.change_warp(factor),
-            CommandType::Debug(req) => {
-                if &req == "invalid" {
-                    prout!("ERROR: Improper usage.");
-                    prout!("\nSyntax: DEBUG argument");
-                    prout!("Supported arguments: events")
-                }
-                if &req == "events" {
-                    prout!("Event stack: {:#?}", &upcoming_events);
-                }
+        }
+
+        if did_something {  // The player has done a non-free action, so the Klingons get to shoot back
+            for enemy in uni.get_quadrant().enemies() {
+                let distance: usize = (uni.sloc/10).abs_diff(enemy.1 / 10) + (uni.sloc%10).abs_diff(enemy.1 % 10);
             }
         }
 
@@ -164,19 +190,27 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
             let mut e = 0;
             while e < upcoming_events.len() {
                 match upcoming_events[e] {
-                    Event::StarbaseAttack(t, loc) => {
-                        if uni.stardate >= t {
-
+                    Event::None => {},
+                    Event::StarbaseAttack(begin, end, loc) => {
+                        println!("Processing starbase attack.");
+                        if begin <= uni.stardate && uni.stardate <= end 
+                            && uni.damage.radio <= 0.3 
+                            && uni.quadrants[loc[0]][loc[1]].starbase_threatened() {  // I wish Rust would allow you to chain comparison operators.
+                                prout!("\n[*Lt. UHURA*] Captain, we just received a distress call from the starbase in quadrant {} {}. The base is under attack by Klingons, and can only hold out until stardate {:.2}.", loc[0] + 1, loc[1]+1, end);
+                                upcoming_events.remove(e.clone());
+                                sub_event = true;
                         }
                     },
                     Event::StarbaseDestroy(t, loc) => {
                         if uni.stardate >= t {
-                            if uni.quadrants[loc.0][loc.1].starbase_threatened() {
-                                uni.kill_starbase(loc);
-                            } else {
-                                upcoming_events.remove(e.clone());
-                                sub_event = true;
+                            if uni.quadrants[loc[0]][loc[1]].starbase_threatened() {
+                                uni.kill_starbase(loc.clone());
+                                if uni.damage.radio <= 0.3 {
+                                    slow_prout(format!("[*Lt. UHURA*] Sir, an APB just came in from Starfleet. The Klingons have destroyed the starbase in quadrant {} {}. I'm sorry sir.", loc[0], loc[1]), SLOW, true);
+                                }
                             }
+                            upcoming_events.remove(e.clone());
+                            sub_event = true;
                         }
                     },
                     Event::TractorBeam(t) => {
@@ -207,12 +241,12 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
                             let t = uni.stardate;
                             upcoming_events.push(Event::Supernova(rand::thread_rng().gen_range(t+3.0..t+9.0)));
                         }
-                    },
+                    }
                 }
-                if sub_event && e > 0 {
-                    e -= 1;
+                if !sub_event {
+                    e += 1;
                 }
-                e += 1;
+                sub_event = false;  // reset sub_event for next iteration
             }
         }
     }
@@ -228,7 +262,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
             prout!("With the Enterprise out of the way, the Klingons proceed to conquer the Federation.");
         },
         DeathReason::NegativeSpaceWedgie => {
-            prout!("The Enterprise's experimental deathray has created a rift in spacetime, through which stream mind-boggling... things with too many tentacles and too little respect for the laws of physics.");
+            prout!("The Enterprise's experimental deathray has created a rift in spacetime, through which stream mind-boggling... *things* with too many tentacles and too little respect for the laws of physics.");
             prout!("Although most attempts to study them result in insanity, one thing is known for certain: whether through hostility or outright indifference, they see no problem with brutally killing any \"normal\" creatures they encounter.");
         },
         DeathReason::Kaboom => {
@@ -271,7 +305,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
             prout!("It is taken back to their home world and turned into a museum attraction.");
         },
         DeathReason::Transformation => {
-            prout!("You and your crew have been mutated into strange abominations.");
+            prout!("You and your crew have mutated into strange abominations.");
             prout!("Mr. Spock alone is unaffected. As a result, he kills you and defects to the Romulans, leading them in a conquest of the galaxy.");
         },
         DeathReason::Borg => {
@@ -281,7 +315,7 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
             prout!("If only this had occured a century later; perhaps then things would have turned out differently.");
         },
         DeathReason::EventHorizon => {
-            prout!("The Enterprise has been sucked into a black hole.");
+            prout!("The Enterprise has blundered into a black hole.");
             prout!("It is crushed like a tin can, leaving the Federation defenseless.");
         },
         DeathReason::SelfDestruct => {
@@ -302,6 +336,58 @@ fn mainloop <'a> (mut uni: Universe) -> Result<(), &'static str> {
 
     return Ok(())
 }
+
+
+fn simulate_damage (uni: &mut Universe) {
+    prout!("AVAILABLE SYSTEMS:");
+    prout!(" - SHIELDS");
+    prout!(" - REACTORS");
+    prout!(" - LIFE_SUPPORT");
+    prout!(" - WARP_DRIVE");
+    prout!(" - IMPULSE_DRIVE");
+    prout!(" - PHASERS");
+    prout!(" - TORPEDOES");
+    prout!(" - TRACTORS");
+    prout!(" - DEATHRAY");
+    prout!(" - RADIO");
+    prout!(" - TRANSPORTER");
+    prout!(" - SHUTTLES");
+    prout!(" - LRSENSORS");
+    prout!(" - SRSENSORS");
+    prout!(" - CLOAK");
+    prout!(" - COMPUTER");
+    let which = input("Which system? ").to_lowercase();
+    let amount = match input("How much damage? ").parse::<f64>() {
+        Ok(v) => v,
+        Err(e) => {
+            prout!("Error converting value: {}", e);
+            return
+        }
+    };
+
+    match which.as_str() {
+        "shields" => uni.damage.shields += amount,
+        "reactors" => uni.damage.reactors += amount,
+        "life_support" => uni.damage.life_support += amount,
+        "warp_drive" => uni.damage.warp_drive += amount,
+        "impulse_drive" => uni.damage.impulse_drive += amount,
+        "phasers" => uni.damage.phasers += amount,
+        "torpedoes" => uni.damage.torpedoes += amount,
+        "tractors" => uni.damage.tractors += amount,
+        "deathray" => uni.damage.deathray += amount,
+        "radio" => uni.damage.radio += amount,
+        "transporter" => uni.damage.transporter += amount,
+        "shuttles" => uni.damage.shuttles += amount,
+        "lrsensors" => uni.damage.lrsensors += amount,
+        "srsensors" => uni.damage.srsensors += amount,
+        "cloak" => uni.damage.cloak += amount,
+        "computer" => uni.damage.computer += amount,
+        _ => {
+            prout!("ERROR: Invalid option.");
+        }
+    }
+}
+
 
 #[allow(unused_imports)]
 mod tests {

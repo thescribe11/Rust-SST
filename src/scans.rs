@@ -1,4 +1,4 @@
-use crate::structs::{EntityType, Alert};
+use crate::{structs::{EntityType, Alert}, prout};
 use termion::color::{Blue, Fg, Green, Red, Reset, Yellow, LightBlue};
 
 
@@ -75,7 +75,7 @@ impl crate::structs::Universe {
                         _ => panic!("It appears that the program has managed to put an impossible value in the sector srscan table. Please contact the developer with a bug report.")
                     });
                 } else {
-                    print!(" ?");
+                    print!("  ");
                 }
 
                 index += 1;
@@ -191,6 +191,9 @@ impl crate::structs::Universe {
             }
 
             println!("┃");
+            if vert < 7 {
+                prout!("  ┃                                 ┃");
+            }
         }
         println!("  ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛");
     }

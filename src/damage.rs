@@ -122,14 +122,21 @@ impl Damage {
     }
 
     /// Repair damage to the ship's systems.
-    pub fn repair (&mut self, elapsed: f64) {
-        self.reactors -= elapsed; self.life_support -= elapsed; self.warp_drive -= elapsed; self.impulse_drive -= elapsed;
-        self.phasers-= elapsed; self.torpedoes -= elapsed; self.tractors -= elapsed; self.deathray -= elapsed;
-        self.radio -= elapsed; self.transporter -= elapsed; self.shuttles -= elapsed; self.lrsensors -= elapsed; 
-        self.srsensors -= elapsed; self.cloak -= elapsed; self.shields -= elapsed; self.computer -= elapsed;
+    pub fn repair (&mut self, elapsed: f64, docked: bool) {
+        if docked {  // Repairs proceed 1.5 times faster while docked
+            self.reactors -= elapsed*1.5; self.life_support -= elapsed*1.5; self.warp_drive -= elapsed*1.5; self.impulse_drive -= elapsed*1.5;
+            self.phasers-= elapsed*1.5; self.torpedoes -= elapsed*1.5; self.tractors -= elapsed*1.5; self.deathray -= elapsed*1.5;
+            self.radio -= elapsed*1.5; self.transporter -= elapsed*1.5; self.shuttles -= elapsed*1.5; self.lrsensors -= elapsed*1.5; 
+            self.srsensors -= elapsed*1.5; self.cloak -= elapsed*1.5; self.shields -= elapsed*1.5; self.computer -= elapsed*1.5;
+        } else {
+            self.reactors -= elapsed; self.life_support -= elapsed; self.warp_drive -= elapsed; self.impulse_drive -= elapsed;
+            self.phasers-= elapsed; self.torpedoes -= elapsed; self.tractors -= elapsed; self.deathray -= elapsed;
+            self.radio -= elapsed; self.transporter -= elapsed; self.shuttles -= elapsed; self.lrsensors -= elapsed; 
+            self.srsensors -= elapsed; self.cloak -= elapsed; self.shields -= elapsed; self.computer -= elapsed;
+        }
 
         if self.reactors < 0.0 { self.reactors = 0.0 };
-        if self.life_support < 0.0 { self.reactors = 0.0 };
+        if self.life_support < 0.0 { self.life_support = 0.0 };
         if self.warp_drive < 0.0 { self.warp_drive = 0.0 };
         if self.impulse_drive < 0.0 { self.impulse_drive = 0.0 };
         if self.phasers < 0.0 { self.phasers = 0.0 };
@@ -152,6 +159,6 @@ fn form (item: f64) -> String {
     if item == 0.0 {
         format!("{}Operational{}", Fg(Green), Fg(Reset))
     } else {
-        format!("{}{}{}", Fg(Red), item, Fg(Reset))
+        format!("{}{:.2}{}", Fg(Red), item, Fg(Reset))
     }
 }

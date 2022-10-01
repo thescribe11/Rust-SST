@@ -1,6 +1,6 @@
 use rand::{Rng, thread_rng};
 use rand::prelude::SliceRandom;
-use crate::io::{get_args, get_yorn, slow_prout, SLOW, EXTRA_SLOW};
+use crate::io::{get_args, get_yorn, slow_prout, SLOW, EXTRA_SLOW, wait};
 use crate::finish::DeathReason;
 use crate::{prout};
 use crate::{input, io::abbrev};
@@ -98,10 +98,7 @@ impl crate::structs::Universe {
             return;
         }
 
-        let time = match use_impulse {
-            true => distance*bigger / 0.095,
-            false => distance*bigger / self.warp_factor
-        };
+        let time = calc_time(&use_impulse, &distance, self.warp_factor);
 
         if time > (self.time_remaining * 0.8) {  // Ask for confirmation if the trip takes more than 80% of the remaining time
             match use_impulse {
@@ -137,11 +134,11 @@ impl crate::structs::Universe {
             match use_impulse {
                false => {
                    self.energy -= 1.05 * self.warp_factor.powi(2) * ((self.shield_status as u8 + 1) as f64);
-                   self.add_time(3.0*bigger/self.warp_factor);
+                   self.add_time(calc_time(&false, &bigger, self.warp_factor));
                 },
                true => {
                    self.energy -= 100.0;
-                   self.add_time(0.95);
+                   self.add_time(calc_time(&true, &bigger, self.warp_factor));
                }
             }
 
@@ -225,8 +222,7 @@ impl crate::structs::Universe {
                     },
                     5 => {  // Black hole
                         interrupted = true;
-                        slow_prout("\n***RED ALERT! RED ALERT!***", SLOW, true);
-                        slow_prout("\nThe Enterprise is pulled into a black hole, crushing it like a tin can.", SLOW, true);
+                        slow_prout("\n***RED ALERT! RED AL", SLOW, true);
                         self.die(DeathReason::EventHorizon);
                     },
                     _ => {
@@ -261,7 +257,8 @@ impl crate::structs::Universe {
         self.hit_me = true;
 
         self.place_ship(old_qvert, old_qhoriz, old_sloc);
-    }  // End move_it
+    }
+
 
     /// Place the ship in a new location after movement, shockwave knockback, etc.
     /// 
@@ -328,7 +325,7 @@ impl crate::structs::Universe {
         };
 
         self.quadrants[*nqvert as usize][*nqhoriz as usize].kill_entity(&nloc);
-        self.kill_enemy(&(*nqvert as usize), &(*nqhoriz as usize), &*nloc);
+        self.kill_enemy(*nqvert as usize, *nqhoriz as usize, *nloc);
 
         self.damage.add_ramming_damage(enemy_type);
 
@@ -434,7 +431,7 @@ impl crate::structs::Universe {
         };
         
         if crate::DEBUG {
-            prout!("Selected starbase: {:?}", selected);
+            prout!("Selected starbase: {:?}", &selected);
         }
         if !get_yorn("[*Lt. Sulu*] Captain, are you sure this is a good idea?\n> ") {
             return;
@@ -470,7 +467,8 @@ impl crate::structs::Universe {
         slow_prout("  ", EXTRA_SLOW, true);
 
         if self.damage.computer > 0.15 {
-            slow_prout("[*Comp.*] !ERROR!: CONTROL INTERLINKS INOPERABLE!                      ", SLOW, true);
+            slow_prout("[*Comp.*] !ERROR!: CONTROL INTERLINKS INOPERABLE!", SLOW, true);
+            wait(5);
             prout!("******************* BOOM *******************");
             self.die(DeathReason::Supernova);
             return;
@@ -493,7 +491,7 @@ impl crate::structs::Universe {
                 slow_prout(" SO LONG, AND THANKS FOR ALL THE FISH.", SLOW, false);
             }
 
-            slow_prout("       ", EXTRA_SLOW, true);  // Give the player some time to consider things
+            wait(7);  // Give the player some time to consider things
             prout!("******************* BOOM *******************");
             self.die(DeathReason::Supernova);
             return;
@@ -516,5 +514,19 @@ impl crate::structs::Universe {
         }
 
         self.non_movement_place_ship(chosen_vert as usize, chosen_horiz as usize, new_sloc)
+    }
+}
+
+
+/// Calculate the amount of time a move will take.
+/// 
+/// Arguments:
+/// - `use_impulse`: whether the ship is using its impulse drive
+/// - `distance`: the distance the ship is going
+/// - `warp`: the warp factor. This value is ignored if `use_impulse` is true.
+fn calc_time (use_impulse: &bool, distance: &f64, warp: f64) -> f64 {
+    match use_impulse {
+        true => distance * 0.55,
+        false => distance / warp / 5.0
     }
 }

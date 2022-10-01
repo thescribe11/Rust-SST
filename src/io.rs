@@ -73,17 +73,16 @@ pub fn get_yorn (prompt: &str) -> bool {
         "" => input("Are you sure? (y/n) "),
         _ => input(prompt)
     }.to_lowercase();
-
+    if i.ends_with("!") {
+        prout!("Please don't shout; it hurts the crew's feelings.");
+        return false;
+    }
     return abbrev(&i, "y", "yes")
 }
 
-
+#[inline]
 pub fn abbrev (what: &String, least: &str, full: &str) -> bool {
     //! Check if `what` is an abbreviation of `full` and starts with `least`.
-
-    if what.ends_with("!") {
-        prout!("Please don't shout; it hurts the crew's feelings.");
-    }
 
     return what.starts_with(&least) && full.contains(what)
 }
@@ -280,7 +279,17 @@ pub fn em_exit (uni: Universe) {
 
 pub fn parse_args <'a> (raw_input: String) -> CommandType {
     //! Parse input
+    //! 
+    //! `raw_input`: The player's command input.
+    
     let mut tokens: Vec<String> = raw_input.split(' ').map(|s| s.to_lowercase()).collect();
+
+    for arg in tokens.clone() {
+        if arg.ends_with("!") {
+            prout!("Please don't shout; it hurts the crew's feelings.");
+            return CommandType::Error
+        }
+    }
 
     if tokens[0].len() == 0 {
         return CommandType::Error
@@ -364,7 +373,7 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
                 let angle = match tokens[1].parse::<f64>() {
                     Ok(a) => a,
                     Err(_) => {
-                        prout!(r#"[*Helm*] Sir, "second to the right, turn left after the sun and then straight on till morning" isn't a valid direction."#);
+                        prout!(r#"[*Helm*] Sir, "second to the right, turn left after the sun and then straight on till morning" isn't a valid course."#);
                         return CommandType::Error
                     }
                 };
@@ -387,8 +396,8 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
             }
         }
     }
-    else if tokens[0].clone() == "load" {
-        return CommandType::Load(match tokens.len() {
+    else if tokens[0].clone() == "thaw" {
+        return CommandType::Thaw(match tokens.len() {
             1 => Some(input("Enter save file name > ")),
             2 => Some(tokens[1].clone()),
             _ => {
@@ -437,10 +446,9 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
     else if abbrev(&tokens[0], "o", "orbit") {
         return CommandType::Orbit;
     }
-    else if abbrev(&tokens[0], "ph", "phasers") {
-        let total_energy: f32;
-
-        let mut mode: ControlMode;
+    else if abbrev(&tokens[0], "ph", "phasers") {  // TODO fix so that the values get parsed correctly
+        let mut total_energy: f32 = f32::NAN;
+        let mode: ControlMode;
         if tokens.len() > 1 {
             mode = match &tokens[1] {
                 a if abbrev(&a, "a", "automatic") => {
@@ -449,8 +457,15 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
                 m if abbrev(&m, "m", "manual") => {
                     ControlMode::Manual
                 },
-                n if is_numeric(&n) => {
-                    ControlMode::Undefined
+                n if is_numeric(&n) => {  // If you supply an amount of energy, it's assumed to be automatic mode
+                    total_energy = match tokens[1].parse::<f32>() {
+                        Ok(v) => v,
+                        Err(_) => {
+                            prout!("[*Fire Control*] That, like, makes no sense, captain.");
+                            return CommandType::Error
+                        }
+                    };
+                    ControlMode::Auto
                 },
                 _ => {
                     prout!("[*Fire Control*] Pull the other one; its got bells on.");
@@ -458,46 +473,33 @@ pub fn parse_args <'a> (raw_input: String) -> CommandType {
                 }
             };
         } else {
-            mode = ControlMode::Undefined;
+            return CommandType::Phasers(ControlMode::Undefined, total_energy);
         }
 
-        if mode == ControlMode::Undefined {
-            mode = ControlMode::Auto;
-            if tokens.len() > 1{
-                total_energy = match tokens[1].parse::<f32>() {
-                    Ok(i) => i,
-                    Err(_) => {
-                        prout!("[*Fire Control*] Sir, I can't fire non-numeric amounts of energy.");
-                        return CommandType::Error
-                    }
-                };
-            } else {
-                let energy = input("How much energy would you like to fire?\n> ");
-                total_energy = match energy.parse::<f32>() {
-                    Ok(v) => v,
-                    Err(_) => {
-                        prout!("[*Fire Control*] Sir, I can't fire non-numeric amounts of energy.");
-                        return CommandType::Error;
-                    }
-                };
-            }
+        if tokens.len() == 2 {  // If no control mode was supplied, assume automatic control and proceed accordingly.
+            return CommandType::Phasers(mode, total_energy)
+        }
 
-            let mut e: Vec<f32> = Vec::new();
-            e.push(total_energy);
-            return CommandType::Phasers(mode, e)
-        } else {
-            tokens.remove(0);
-            tokens.remove(0);
-            let tokens: Vec<f32> = match convert_vec(tokens) {
-                Some(v) => v,
-                None => {
-                    prout!("[*Fire Control*] Sir, that firing solution is invalid.");
+        if mode == ControlMode::Auto {
+            if tokens.len() == 3 {
+                if !is_numeric(&tokens[2]) {
+                    prout!("[*Fire Control*] Captain, that's, like, not a number, bro.");
                     return CommandType::Error
                 }
-            };
 
-            return CommandType::Phasers(mode, tokens)
+                total_energy = match tokens[2].parse::<f32>() {
+                    Ok(v) => v,
+                    Err(_) => {
+                        prout!("[*Fire Control*] Captain, that's, like, not a number, bro.");
+                        return CommandType::Error
+                    }
+                }
+            } else {  // Too many arguments
+                prout!("[*Fire Control*] Captain, you're, like, rambling. When trying to, like, fire in automatic fire control it would be, like, totally radical if you could just, like, give me the amount of energy to fire.");
+                return CommandType::Error
+            }
         }
+        return CommandType::Phasers(mode, total_energy);
     }
     else if abbrev(&tokens[0], "pl", "planets") {
         return CommandType::PlanetReport
@@ -716,12 +718,12 @@ pub enum CommandType {
     Freeze(Option<String>),
     Help(String),
     Impulse(Option<f64>, Option<f64>),
-    Load(Option<String>),
+    Thaw(Option<String>),
     LrScan,
     Mine,
     Move(Option<f64>, Option<f64>),
     Orbit,
-    Phasers(ControlMode, Vec<f32>),
+    Phasers(ControlMode, f32),
     PlanetReport,
     Probe(bool, ControlMode, Vec<i32>),
     Quit,

@@ -1,9 +1,12 @@
 //! Contains all the various data structs used by the program.
+use core::fmt;
+
 use rand::Rng;
 use serde::{Serialize, Deserialize};
 use crate::{finish::DeathReason, io::SLOW, slow_prout};
 use crate::prout;
 use crate::damage::Damage;
+
 
 
 /// The main data struct. It encapsulates everything else.
@@ -17,6 +20,7 @@ pub struct Universe {
     pub alive: bool,
     pub death_reason: DeathReason,
     pub leave_attempts: u8,
+    difficulty: u8,
 
     pub stardate: f64,
     pub time_remaining: f64,
@@ -60,6 +64,7 @@ impl Universe {
             alive: true,
             death_reason: DeathReason::None,
             leave_attempts: 0,
+            difficulty,
 
             stardate: (100.0f64*(31.0*rand::random::<f64>()+20.0)) as f64,
             time_remaining: 0.0,
@@ -105,7 +110,8 @@ impl Universe {
             match starbased.contains(&(vert, horiz)) {
                 true => continue,
                 false => {
-                    to_return.quadrants[vert][horiz].add_starbase(); 
+                    to_return.quadrants[vert][horiz].add_starbase();
+                    to_return.charted[vert][horiz] = true;
                     starbased.push((vert,horiz)); 
                     i+=1;
                 }
@@ -124,6 +130,11 @@ impl Universe {
     }
 
 
+    pub fn get_difficulty (&self) -> u8 {
+        return self.difficulty
+    }
+
+
     /// Get a list of the starbases' locations.
     pub fn get_starbases (&self) -> Vec<[usize; 2]> {
         let mut locs: Vec<[usize; 2]> = Vec::new();
@@ -135,13 +146,28 @@ impl Universe {
                 }
             }
         }
-        locs
+        return locs
     }
 
-    pub fn kill_starbase (&mut self, loc: (usize, usize)) {
-        if self.quadrants[loc.0][loc.1].starbase_threatened() {
+    /// Get a list of threatened starbases' locations.
+    pub fn get_threatened_starbases (&self) -> Vec<[usize; 2]> {
+        let mut locs: Vec<[usize; 2]> = Vec::new();
+
+        for vert in 0..8 {
+            for horiz in 0..8 {
+                if self.quadrants[vert][horiz].starbase_threatened() {
+                    locs.push([vert, horiz]);
+                }
+            }
+        }
+        return locs
+    }
+
+    pub fn kill_starbase (&mut self, loc: [usize; 2]) {
+        if self.quadrants[loc[1]][loc[1]].starbase_threatened() {
             self.starbases -= 1;
-            self.quadrants[loc.0][loc.1].kill_starbase();
+            self.quadrants[loc[0]][loc[1]].kill_starbase();
+
             self.score.kill_starbase();
         }
     }
@@ -200,18 +226,18 @@ impl Universe {
     pub fn add_time (&mut self, diff: f64) {
         self.time_remaining -= diff;
         self.stardate += diff;
-        self.damage.repair(diff);
+        self.damage.repair(diff, self.docked);
     }
 
 
     /// Kill an enemy at the specified location
-    pub fn kill_enemy (&mut self, qvert: &usize, qhoriz: &usize, loc: &usize) {
-        let enemy = match self.quadrants[*qvert][*qhoriz].get_entity(loc.clone()) {
+    pub fn kill_enemy (&mut self, qvert: usize, qhoriz: usize, loc: usize) {
+        let enemy = match self.quadrants[qvert][qhoriz].get_entity(loc.clone()) {
             Some(e) => e,
             None => return,
         };
 
-        self.quadrants[*qvert][*qhoriz].kill_entity(&*loc);
+        self.quadrants[qvert][qhoriz].kill_entity(&loc);
 
         match enemy.0 {
             EntityType::Klingon => {
@@ -222,7 +248,7 @@ impl Universe {
             EntityType::Romulan => self.score.kill_romulan(),
             EntityType::Tholian => self.score.kill_tholian(),
             EntityType::Unknown => self.score.kill_unknown(),
-            _ => {}
+            _ => prout!("This is being called AFTER the ship gets killed!")
         }
     }
 }
@@ -273,7 +299,7 @@ impl Quadrant {
             4 => 10,
             _ => panic!("This code should be unreachable.")
         }) - 1; // TODO: Change this to account for difficulty
-        let max_romulans = randint.gen_range(-1..match difficulty {
+        let max_romulans: i32 = randint.gen_range(-1..match difficulty {
             1..=2 => 2,
             3..=4 => 4,
             _ => panic!("This code should be unreachable.")
@@ -290,7 +316,7 @@ impl Quadrant {
                     self.entities.push((
                         EntityType::Klingon,
                         i,
-                        Health::new(randint.gen_range(150..=300), true),
+                        Health::new(randint.gen_range(150.0..=300.0)),
                         Alignment::Enemy
                     ));
                 },
@@ -299,7 +325,7 @@ impl Quadrant {
                     self.entities.push((
                         EntityType::Romulan,
                         i,
-                        Health::new(randint.gen_range(250..600), true),
+                        Health::new(randint.gen_range(250.0..600.0)),
                         Alignment::Enemy
                     ));
                     4
@@ -309,7 +335,7 @@ impl Quadrant {
                     self.entities.push((
                         EntityType::BlackHole,
                         i,
-                        Health::new(i32::MAX, false),
+                        Health::new(f64::MAX),
                         Alignment::Neutral
                     ));
                 },  // Black hole.
@@ -319,7 +345,7 @@ impl Quadrant {
                     self.entities.push((
                         EntityType::Star,
                         i,
-                        Health::new(i32::MAX, false),
+                        Health::new(f64::MAX),
                         Alignment::Neutral,
                     ))
                 }, // Star
@@ -344,7 +370,7 @@ impl Quadrant {
            match self.sectors[location] {
                0 => {
                    self.sectors[location] = 2;
-                   self.entities.push((EntityType::Starbase, location, Health::new(2500, false), Alignment::Neutral));
+                   self.entities.push((EntityType::Starbase, location, Health::new(2500.0), Alignment::Neutral));
                    break
                 },  // Sector unoccupied; add a starbase and return
                _ => continue  // Sector occupied; continue searching for an empty spot
@@ -387,6 +413,13 @@ impl Quadrant {
     pub fn kill_entity (&mut self, location: &usize) {
         for e in 0..self.entities.len() {
             if &self.entities[e].1 == location {
+                match &self.entities[e].0 {  // Update Lrscan values.
+                    EntityType::Klingon => self.klingons -= 1,
+                    EntityType::Romulan => self.romulans -= 1,
+                    EntityType::Starbase => self.starbases -= 1,
+                    EntityType::Star => self.stars -= 1,
+                    _ => {}
+                }
                 self.entities.remove(e);
                 break;
             }
@@ -395,14 +428,18 @@ impl Quadrant {
     }
 
     /// Apply damage to an enemy.
-    pub fn damage_entity (&mut self, location: usize, amount: i32) -> Option<bool> {
+    /// 
+    /// NOTE: If this returns a KO, you need to seperately call kill_entity.
+    pub fn damage_entity (&mut self, location: &usize, amount: f64) -> Option<EntityType> {
         for e in 0..self.entities.len() {
-            if self.entities[e].1 == location {
-                self.entities[e].2.amount -= amount
+            if self.entities[e].1 == *location {
+                self.entities[e].2.amount -= amount;
+                if self.entities[e].2.amount <= 0.0 {  // He's dead, Jim
+                    return Some(self.entities[e].0)  // Let the calling function know that something died
+                }
             }
         }
-
-        return None
+        return None  // Nothing died
     }
 
     /// Get one of the quadrant's sectors
@@ -429,7 +466,12 @@ impl Quadrant {
     }
 
     pub fn kill_starbase (&mut self) {
-        todo!()
+        for i in 0..100 {
+            if self.sectors[i] == 2 {  // Find starbase
+                self.sectors[i] = 0;
+                break;  // There can only be one starbase per quadrant
+            }
+        }
     }
 
     pub fn starbase_threatened (&self) -> bool {
@@ -446,6 +488,16 @@ impl Quadrant {
         } else {
             return false
         }
+    }
+
+    pub fn enemies (&self) -> Vec<(EntityType, usize, Health, Alignment)> {
+        let mut stuff: Vec::<(EntityType, usize, Health, Alignment)> = Vec::new();
+        for i in self.entities.clone() {
+            if i.3 == Alignment::Enemy {
+                stuff.push(i);
+            }
+        }
+        stuff
     }
 }
 
@@ -591,20 +643,33 @@ pub enum EntityType {
     Planet,
     BlackHole,
 }
+impl fmt::Display for EntityType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Star      => "star",
+            Self::Starbase  => "starbase",
+            Self::Klingon   => "Klingon battlecruiser",
+            Self::Romulan   => "Romulan Bird-of-Prey",
+            Self::Unknown   => "???",
+            Self::Tholian   => "Tholian ship",
+            Self::Planet    => "planet",
+            Self::BlackHole => "black hole",
+        })
+    }
+}
 
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Health {
-    pub amount: i32,
-    pub is_enemy: bool,
+    pub amount: f64,
 }
 impl Health {
-    fn new(amount: i32, alignment: bool) -> Health {
-        Health { amount, is_enemy: alignment }
+    fn new(amount: f64) -> Health {
+        Health { amount }
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub enum Alignment {
     Neutral,
     Enemy
